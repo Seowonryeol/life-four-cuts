@@ -64,9 +64,11 @@
     frame: {
       layout: 'strip',       // 'strip' | 'grid'
       color: '#000000',       // 프레임 배경색
-      bg: 'none'              // 'none' | 'bg1' | 'bg2' | 'bg3'
+      bg: 'none',             // 'none' | 'bg1' | 'bg2' | 'bg3' | 'vert4_bg1' | 'vert4_bg2'
+      deco: 'none'            // 'none' | 'vert4_deco1' | 'vert4_deco2'
     },
     bgImages: {},
+    decoImages: {},
     photos: [],               // 캡처된 이미지 Data URL 배열
     currentShot: 0,           // 현재 촬영 인덱스 (0-3)
     filter: 'none',           // 선택된 필터 이름
@@ -999,6 +1001,11 @@
       renderStickersOnCanvas(ctx, stickers, canvas.width, canvas.height, false);
     }
 
+    // 데코 이미지 그리기 (최상단)
+    if (frameConfig.deco && frameConfig.deco !== 'none' && state.decoImages && state.decoImages[frameConfig.deco]) {
+      ctx.drawImage(state.decoImages[frameConfig.deco], 0, 0, canvas.width, canvas.height);
+    }
+
     // 날짜 워터마크
     drawDateWatermark(ctx, canvas.width, canvas.height, frameConfig.color);
 
@@ -1223,6 +1230,11 @@
     // 스티커 (선택 UI 포함)
     renderStickersOnCanvas(ctx, state.stickers, canvas.width, canvas.height, true);
 
+    // 데코 이미지 그리기 (최상단)
+    if (state.frame.deco !== 'none' && state.decoImages && state.decoImages[state.frame.deco]) {
+      ctx.drawImage(state.decoImages[state.frame.deco], 0, 0, canvas.width, canvas.height);
+    }
+
     // 날짜 워터마크
     drawDateWatermark(ctx, canvas.width, canvas.height, state.frame.color);
   }
@@ -1280,19 +1292,45 @@
       ctx.restore();
     });
 
+    // 데코 이미지 그리기 (최상단)
+    if (state.frame.deco !== 'none' && state.decoImages && state.decoImages[state.frame.deco]) {
+      ctx.drawImage(state.decoImages[state.frame.deco], 0, 0, canvas.width, canvas.height);
+    }
+
     // 날짜 워터마크
     drawDateWatermark(ctx, canvas.width, canvas.height, state.frame.color);
   }
 
   // 이미지 미리 로드
   async function preloadBackgrounds() {
-    const bgs = ['background_01.png', 'background_02.png', 'background_03.png'];
-    for (let i = 0; i < bgs.length; i++) {
+    const bgs = [
+      { key: 'bg1', path: 'assets/background_01.png' },
+      { key: 'bg2', path: 'assets/background_02.png' },
+      { key: 'bg3', path: 'assets/background_03.png' },
+      { key: 'vert4_bg1', path: 'assets/vert4_template_background_01.png' },
+      { key: 'vert4_bg2', path: 'assets/vert4_template_background_02.png' }
+    ];
+    
+    const decos = [
+      { key: 'vert4_deco1', path: 'assets/vert4_template_deco_01.png' },
+      { key: 'vert4_deco2', path: 'assets/vert4_template_deco_02.png' }
+    ];
+
+    for (const bg of bgs) {
       try {
-        const img = await loadImage(bgs[i]);
-        state.bgImages[`bg${i + 1}`] = img;
+        const img = await loadImage(bg.path);
+        state.bgImages[bg.key] = img;
       } catch (e) {
-        console.warn('Failed to load bg', bgs[i]);
+        console.warn('Failed to load bg', bg.path);
+      }
+    }
+
+    for (const deco of decos) {
+      try {
+        const img = await loadImage(deco.path);
+        state.decoImages[deco.key] = img;
+      } catch (e) {
+        console.warn('Failed to load deco', deco.path);
       }
     }
   }
@@ -1504,6 +1542,48 @@
     state.hostedPageUrl = null;
   }
 
+    function updateBgOptionsUI() {
+    const container = $('#bg-options-list');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    let options = [];
+    if (state.frame.layout === 'strip') {
+      options = [
+        { label: '단색', bg: 'none', deco: 'none' },
+        { label: '템플릿 1', bg: 'vert4_bg1', deco: 'vert4_deco1' },
+        { label: '템플릿 2', bg: 'vert4_bg2', deco: 'vert4_deco2' }
+      ];
+    } else {
+      options = [
+        { label: '단색', bg: 'none', deco: 'none' },
+        { label: '배경 1', bg: 'bg1', deco: 'none' },
+        { label: '배경 2', bg: 'bg2', deco: 'none' },
+        { label: '배경 3', bg: 'bg3', deco: 'none' }
+      ];
+    }
+
+    options.forEach(opt => {
+      const btn = createElement('button', 'frame-style-option');
+      btn.textContent = opt.label;
+      btn.dataset.bg = opt.bg;
+      btn.dataset.deco = opt.deco;
+      if (state.frame.bg === opt.bg) {
+        btn.classList.add('active');
+      }
+
+      btn.addEventListener('click', () => {
+        $$('.frame-style-option', container).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.frame.bg = opt.bg;
+        state.frame.deco = opt.deco;
+        renderFramePreview();
+      });
+
+      container.appendChild(btn);
+    });
+  }
+
   /**
    * 프레임 선택 화면 초기화
    */
@@ -1522,6 +1602,9 @@
         });
         clone.classList.add('active');
         state.frame.layout = clone.dataset.layout;
+        state.frame.bg = 'none';
+        state.frame.deco = 'none';
+        updateBgOptionsUI();
         renderFramePreview();
       });
 
@@ -1549,23 +1632,8 @@
       }
     });
 
-    // 배경 선택 이벤트
-    const bgOptions = $$('.frame-style-option[data-bg]');
-    bgOptions.forEach(option => {
-      const clone = option.cloneNode(true);
-      option.parentNode.replaceChild(clone, option);
-
-      clone.addEventListener('click', () => {
-        $$('.frame-style-option').forEach(o => o.classList.remove('active'));
-        clone.classList.add('active');
-        state.frame.bg = clone.dataset.bg;
-        renderFramePreview();
-      });
-
-      if (clone.dataset.bg === state.frame.bg) {
-        clone.classList.add('active');
-      }
-    });
+    // 배경 선택 UI 빌드
+    updateBgOptionsUI();
 
     // 초기 미리보기 렌더링
     renderFramePreview();
