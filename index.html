@@ -50,60 +50,33 @@
     <!-- ═══════════════════════════════════════════════════════
          SCREEN 2 — FRAME SELECTION
          ═══════════════════════════════════════════════════════ -->
-    <section id="screen-frame" class="screen" aria-label="프레임 선택 화면">
+    <section id="screen-frame" class="screen" aria-label="레이아웃 선택 화면">
       <header class="screen-header">
         <nav class="step-indicator" aria-label="진행 단계">
           <span class="step-dot done" aria-label="완료"></span>
-          <span class="step-dot active" aria-label="현재 단계: 프레임 선택"></span>
+          <span class="step-dot active" aria-label="현재 단계: 레이아웃 선택"></span>
           <span class="step-dot" aria-label="촬영"></span>
           <span class="step-dot" aria-label="편집"></span>
           <span class="step-dot" aria-label="완료"></span>
         </nav>
-        <h2>프레임을 선택하세요</h2>
+        <h2>레이아웃을 선택하세요</h2>
       </header>
 
-      <div class="frame-options">
+      <div class="frame-options" style="max-width: 500px; margin: 40px auto;">
         <!-- Layout Options -->
         <div class="option-group">
-          <label>레이아웃</label>
-          <div class="layout-options">
-            <button class="frame-layout-option active" data-layout="strip">
-              <span class="icon">▤</span> 세로 4컷
+          <div class="layout-options" style="grid-template-columns: 1fr; gap: 20px;">
+            <button class="frame-layout-option active" data-layout="strip" style="padding: 24px; font-size: 1.2rem;">
+              <span class="icon" style="font-size: 2rem; margin-right: 12px;">▤</span> 세로 4컷
             </button>
-            <button class="frame-layout-option" data-layout="grid">
-              <span class="icon">⊞</span> 2×2 그리드
+            <button class="frame-layout-option" data-layout="grid" style="padding: 24px; font-size: 1.2rem;">
+              <span class="icon" style="font-size: 2rem; margin-right: 12px;">⊞</span> 2×2 그리드
             </button>
-          </div>
-        </div>
-
-        <!-- Color Options -->
-        <div class="option-group">
-          <label>색상</label>
-          <div class="color-options">
-            <button id="color-black" class="color-swatch active" data-color="#000000" style="background-color: #000000;" aria-label="검정색" aria-pressed="true"></button>
-            <button id="color-white" class="color-swatch" data-color="#ffffff" style="background-color: #ffffff;" aria-label="흰색" aria-pressed="false"></button>
-            <button id="color-pink" class="color-swatch" data-color="#ffb6c1" style="background-color: #ffb6c1;" aria-label="분홍색" aria-pressed="false"></button>
-            <button id="color-gray" class="color-swatch" data-color="#888899" style="background-color: #888899;" aria-label="회색" aria-pressed="false"></button>
-            <button id="color-neon-blue" class="color-swatch" data-color="#00d4ff" style="background-color: #00d4ff;" aria-label="네온 블루" aria-pressed="false"></button>
-            <button id="color-neon-purple" class="color-swatch" data-color="#b44dff" style="background-color: #b44dff;" aria-label="네온 퍼플" aria-pressed="false"></button>
-          </div>
-        </div>
-
-        <!-- Style Options -->
-        <div class="option-group">
-          <label>배경 / 스타일</label>
-          <div id="bg-options-list" class="style-options">
-            <!-- Dynamically populated by app.js -->
           </div>
         </div>
       </div>
 
-      <!-- Frame Preview -->
-      <div class="frame-preview-container">
-        <canvas id="frame-preview" width="300" height="400" aria-label="프레임 미리보기"></canvas>
-      </div>
-
-      <div class="button-group">
+      <div class="button-group" style="margin-top: 40px;">
         <button id="btn-frame-back" class="btn-secondary" aria-label="시작 화면으로 이동">← 뒤로</button>
         <button id="btn-frame-next" class="btn-primary" aria-label="다음 단계로 이동">다음 →</button>
       </div>
@@ -157,10 +130,32 @@
       <!-- Edit Controls -->
       <div class="edit-controls">
         <div class="tab-bar" role="tablist" aria-label="편집 도구 탭">
-          <button id="tab-filters" class="tab-btn active" data-tab="filters" role="tab" aria-selected="true" aria-controls="filter-list">🎨 필터</button>
+          <button id="tab-frames" class="tab-btn active" data-tab="frames" role="tab" aria-selected="true" aria-controls="frame-config-list">🖼️ 프레임</button>
+          <button id="tab-filters" class="tab-btn" data-tab="filters" role="tab" aria-selected="false" aria-controls="filter-list">🎨 필터</button>
           <button id="tab-stickers" class="tab-btn" data-tab="stickers" role="tab" aria-selected="false" aria-controls="sticker-list">✨ 스티커</button>
         </div>
-        <div id="filter-list" class="tab-content active" role="tabpanel" aria-labelledby="tab-filters">
+        <div id="frame-config-list" class="tab-content active" role="tabpanel" aria-labelledby="tab-frames">
+          <!-- Color Options -->
+          <div class="option-group">
+            <label>프레임 색상</label>
+            <div class="color-options">
+              <button id="color-black" class="color-swatch active" data-color="#000000" style="background-color: #000000;" aria-label="검정색" aria-pressed="true"></button>
+              <button id="color-white" class="color-swatch" data-color="#ffffff" style="background-color: #ffffff;" aria-label="흰색" aria-pressed="false"></button>
+              <button id="color-pink" class="color-swatch" data-color="#ffb6c1" style="background-color: #ffb6c1;" aria-label="분홍색" aria-pressed="false"></button>
+              <button id="color-gray" class="color-swatch" data-color="#888899" style="background-color: #888899;" aria-label="회색" aria-pressed="false"></button>
+              <button id="color-neon-blue" class="color-swatch" data-color="#00d4ff" style="background-color: #00d4ff;" aria-label="네온 블루" aria-pressed="false"></button>
+              <button id="color-neon-purple" class="color-swatch" data-color="#b44dff" style="background-color: #b44dff;" aria-label="네온 퍼플" aria-pressed="false"></button>
+            </div>
+          </div>
+          <!-- Style Options -->
+          <div class="option-group">
+            <label>배경 / 스타일</label>
+            <div id="bg-options-list" class="style-options">
+              <!-- Dynamically populated by app.js -->
+            </div>
+          </div>
+        </div>
+        <div id="filter-list" class="tab-content" role="tabpanel" aria-labelledby="tab-filters">
           <!-- Populated dynamically by app.js -->
         </div>
         <div id="sticker-list" class="tab-content" role="tabpanel" aria-labelledby="tab-stickers">

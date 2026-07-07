@@ -1556,7 +1556,7 @@
     state.hostedPageUrl = null;
   }
 
-    function updateBgOptionsUI() {
+  function updateBgOptionsUI() {
     const container = $('#bg-options-list');
     if (!container) return;
     container.innerHTML = '';
@@ -1591,7 +1591,12 @@
         btn.classList.add('active');
         state.frame.bg = opt.bg;
         state.frame.deco = opt.deco;
-        renderFramePreview();
+        
+        if (state.currentScreen === 'edit') {
+          renderEditCanvas();
+        } else {
+          renderFramePreview();
+        }
       });
 
       container.appendChild(btn);
@@ -1599,7 +1604,7 @@
   }
 
   /**
-   * 프레임 선택 화면 초기화
+   * 프레임 선택 화면 초기화 (이제 레이아웃만 선택)
    */
   function initFrameScreen() {
     // 레이아웃 옵션 이벤트
@@ -1616,10 +1621,10 @@
         });
         clone.classList.add('active');
         state.frame.layout = clone.dataset.layout;
+        
+        // 레이아웃 변경 시 배경/데코 초기화
         state.frame.bg = 'none';
         state.frame.deco = 'none';
-        updateBgOptionsUI();
-        renderFramePreview();
       });
 
       // 현재 선택 상태 반영
@@ -1627,30 +1632,6 @@
         clone.classList.add('active');
       }
     });
-
-    // 색상 스와치 이벤트
-    const colorSwatches = $$('.color-swatch[data-color]');
-    colorSwatches.forEach(swatch => {
-      const clone = swatch.cloneNode(true);
-      swatch.parentNode.replaceChild(clone, swatch);
-
-      clone.addEventListener('click', () => {
-        $$('.color-swatch').forEach(s => s.classList.remove('active'));
-        clone.classList.add('active');
-        state.frame.color = clone.dataset.color;
-        renderFramePreview();
-      });
-
-      if (clone.dataset.color === state.frame.color) {
-        clone.classList.add('active');
-      }
-    });
-
-    // 배경 선택 UI 빌드
-    updateBgOptionsUI();
-
-    // 초기 미리보기 렌더링
-    renderFramePreview();
   }
 
   /**
@@ -1782,11 +1763,44 @@
     // 카메라 정지
     stopCamera();
 
-    // 필터 초기화
+    // 필터 및 기타 상태 초기화 (필터는 none, 스티커 클리어, 프레임 설정은 유지하여 유저가 뒤로갔다와도 저장되게 함)
     state.filter = 'none';
     state.stickers = [];
     state.selectedSticker = null;
     state.pendingStickerEmoji = null;
+
+    // 기본 활성 탭 설정 (프레임 설정 탭을 기본 활성화)
+    $$('.tab-btn').forEach(b => b.classList.remove('active'));
+    const tabFrames = $('#tab-frames');
+    if (tabFrames) tabFrames.classList.add('active');
+
+    const frameConfigList = $('#frame-config-list');
+    const filterList = $('#filter-list');
+    const stickerList = $('#sticker-list');
+    if (frameConfigList) frameConfigList.classList.add('active');
+    if (filterList) filterList.classList.remove('active');
+    if (stickerList) stickerList.classList.remove('active');
+
+    // 프레임 색상 스와치 이벤트 설정
+    const colorSwatches = $$('.color-swatch[data-color]');
+    colorSwatches.forEach(swatch => {
+      const clone = swatch.cloneNode(true);
+      swatch.parentNode.replaceChild(clone, swatch);
+
+      clone.addEventListener('click', () => {
+        $$('.color-swatch').forEach(s => s.classList.remove('active'));
+        clone.classList.add('active');
+        state.frame.color = clone.dataset.color;
+        renderEditCanvas();
+      });
+
+      if (clone.dataset.color === state.frame.color) {
+        clone.classList.add('active');
+      }
+    });
+
+    // 배경 선택 UI 빌드 및 동적 템플릿 바인딩
+    updateBgOptionsUI();
 
     // 합성 미리보기 렌더링
     await renderEditCanvas();
@@ -1805,7 +1819,7 @@
   }
 
   /**
-   * 편집 화면의 탭 전환을 설정합니다. (필터 / 스티커)
+   * 편집 화면의 탭 전환을 설정합니다. (프레임 / 필터 / 스티커)
    */
   function setupEditTabs() {
     const tabBtns = $$('.tab-btn[data-tab]');
@@ -1821,9 +1835,13 @@
         const tab = clone.dataset.tab;
 
         // 탭 컨텐츠 전환
+        const frameConfigList = $('#frame-config-list');
         const filterList = $('#filter-list');
         const stickerList = $('#sticker-list');
 
+        if (frameConfigList) {
+          frameConfigList.classList.toggle('active', tab === 'frames');
+        }
         if (filterList) {
           filterList.classList.toggle('active', tab === 'filters');
         }
