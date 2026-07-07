@@ -1625,6 +1625,9 @@
         // 레이아웃 변경 시 배경/데코 초기화
         state.frame.bg = 'none';
         state.frame.deco = 'none';
+
+        // 변경된 레이아웃 미리보기 즉시 반영
+        renderFramePreview();
       });
 
       // 현재 선택 상태 반영
@@ -1632,6 +1635,9 @@
         clone.classList.add('active');
       }
     });
+
+    // 진입 시 초기 미리보기 렌더링
+    renderFramePreview();
   }
 
   /**
@@ -1645,31 +1651,18 @@
     // 촬영 표시기 업데이트
     updateShotIndicator();
 
-    // 사진 썸네일 초기화
-    const thumbsContainer = $('#photo-thumbs');
-    const totalShots = getTotalShots();
-    
-    if (thumbsContainer) {
-      thumbsContainer.innerHTML = '';
-      // 빈 썸네일 슬롯 생성
-      for (let i = 0; i < totalShots; i++) {
-        const slot = createElement('div', 'thumb-slot');
-        slot.dataset.index = i;
-        const num = createElement('span', 'thumb-number', String(i + 1));
-        slot.appendChild(num);
-        thumbsContainer.appendChild(slot);
-      }
-    }
+    // 우측 레이아웃 프레임 썸네일 캔버스 초기화 (빈 슬롯 상태로 그리기)
+    renderShootPreviewCanvas();
 
     // 카메라 시작
     await initCamera();
 
-    // 1초 후 첫 카운트다운 시작
+    // 1.5초 후 첫 카운트다운 시작 (카메라 로딩 대기 시간 고려)
     setTimeout(() => {
       if (state.currentScreen === 'shoot') {
         startShootingSequence();
       }
-    }, 1000);
+    }, 1500);
   }
 
   /**
@@ -1688,31 +1681,45 @@
 
     updateShotIndicator();
 
-    startCountdown(CONFIG.countdown, () => {
+    // 첫번째 컷 촬영 전에는 10초의 대기시간을 부여하고 안내문구 표시
+    const isFirstShot = (state.currentShot === 0);
+    const duration = isFirstShot ? 10 : CONFIG.countdown;
+
+    const poseInstruction = $('#pose-instruction');
+    if (isFirstShot && poseInstruction) {
+      poseInstruction.classList.remove('hidden');
+    }
+
+    startCountdown(duration, () => {
+      // 카운트다운 완료 시 안내 문구 숨김
+      if (poseInstruction) {
+        poseInstruction.classList.add('hidden');
+      }
+
       // 프레임 캡처
       const photoURL = captureFrame();
       if (photoURL) {
-        state.photos.push(photoURL);
-        showPhotoThumbnail(state.currentShot, photoURL);
+        // 날아가는 모션 효과와 함께 우측 슬롯에 임시 배치
+        animatePhotoToSidebar(state.currentShot, photoURL);
       }
 
       state.currentShot++;
       updateShotIndicator();
 
       if (state.currentShot < totalShots) {
-        // 2초 후 다음 촬영
+        // 2초 후 다음 촬영 (비행 모션 시간 0.9초를 감안하여 다음 컷 딜레이 여유 부여)
         setTimeout(() => {
           if (state.currentScreen === 'shoot') {
             startShootingSequence();
           }
-        }, 2000);
+        }, 2200);
       } else {
-        // 모든 촬영 완료
+        // 모든 촬영 완료 → 편집 화면으로 1.8초 뒤 전환
         setTimeout(() => {
           if (state.currentScreen === 'shoot') {
             showScreen('edit');
           }
-        }, 1500);
+        }, 1800);
       }
     });
   }
@@ -1735,25 +1742,129 @@
    * @param {number} index - 촬영 인덱스
    * @param {string} dataURL - 이미지 Data URL
    */
-  function showPhotoThumbnail(index, dataURL) {
-    const thumbsContainer = $('#photo-thumbs');
-    if (!thumbsContainer) return;
+  /**
+   * 실시간 촬영 현황 프레임 캔버스를 렌더링합니다.
+   * @param {number} limitIndex - 이 인덱스 미만의 사진들만 캔버스에 그립니다. (애니메이션 완료 전 슬롯 비워두기용)
+   */
+  function renderShootPreviewCanvas(limitIndex = state.photos.length) {
+    const canvas = $('#shoot-preview-canvas');
+    if (!canvas) return;
 
-    const slot = $(`.thumb-slot[data-index="${index}"]`, thumbsContainer);
-    if (!slot) return;
+    const layout = CONFIG.layouts[state.frame.layout] || CONFIG.layouts.strip;
+    canvas.width = layout.canvasWidth;
+    canvas.height = layout.canvasHeight;
 
-    // 기존 번호 제거
-    slot.innerHTML = '';
+    const ctx = canvas.getContext('2d');
 
-    // 썸네일 이미지 추가
-    const img = createElement('img', 'thumb-img');
-    img.src = dataURL;
-    img.alt = `사진 ${index + 1}`;
-    slot.appendChild(img);
+    // 기본 배경색 채우기
+    ctx.fillStyle = '#222233';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 팝 애니메이션
-    slot.classList.add('thumb-pop');
-    setTimeout(() => slot.classList.remove('thumb-pop'), 500);
+    const positions = getPhotoPositions(state.frame.layout, layout);
+    const totalShots = getTotalShots();
+
+    positions.forEach((pos, index) => {
+      ctx.save();
+      
+      if (index < limitIndex && index < state.photos.length) {
+        // 촬영된 사진 그리기
+        const img = new Image();
+        img.src = state.photos[index];
+        img.onload = () => {
+          ctx.save();
+          drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
+          ctx.restore();
+        };
+      } else {
+        // 촬영 전 빈 슬롯 (플레이스홀더)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.fillRect(pos.x, pos.y, pos.width, pos.height);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.font = 'bold 48px "Pretendard", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(index + 1), pos.x + pos.width / 2, pos.y + pos.height / 2);
+      }
+      
+      ctx.restore();
+    });
+  }
+
+  /**
+   * 사진 촬영 시 카메라 영역에서 우측 레이아웃 프레임의 빈 슬롯으로 날아가는 애니메이션을 실행합니다.
+   */
+  function animatePhotoToSidebar(index, dataURL) {
+    const cameraPreview = $('#camera-preview');
+    const canvas = $('#shoot-preview-canvas');
+    
+    // 데이터 즉시 등록 및 기존 사진들만 먼저 렌더링 (현재 촬영 컷은 빈 슬롯 상태 유지)
+    state.photos.push(dataURL);
+    renderShootPreviewCanvas(state.photos.length - 1);
+
+    if (!cameraPreview || !canvas) {
+      // 요소를 찾지 못한 경우 애니메이션 없이 즉시 최종 렌더링
+      renderShootPreviewCanvas();
+      return;
+    }
+
+    const layout = CONFIG.layouts[state.frame.layout] || CONFIG.layouts.strip;
+    const positions = getPhotoPositions(state.frame.layout, layout);
+    const pos = positions[index];
+
+    // 뷰포트 기준 좌표 및 크기 계산
+    const camRect = cameraPreview.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+
+    const scaleX = canvasRect.width / canvas.width;
+    const scaleY = canvasRect.height / canvas.height;
+
+    const targetLeft = canvasRect.left + pos.x * scaleX;
+    const targetTop = canvasRect.top + pos.y * scaleY;
+    const targetWidth = pos.width * scaleX;
+    const targetHeight = pos.height * scaleY;
+
+    // 날아가는 이미지 생성
+    const flyer = document.createElement('img');
+    flyer.src = dataURL;
+    flyer.style.position = 'fixed';
+    flyer.style.zIndex = '9999';
+    flyer.style.left = camRect.left + 'px';
+    flyer.style.top = camRect.top + 'px';
+    flyer.style.width = camRect.width + 'px';
+    flyer.style.height = camRect.height + 'px';
+    flyer.style.objectFit = 'cover';
+    flyer.style.borderRadius = '12px';
+    flyer.style.boxShadow = '0 12px 35px rgba(0, 0, 0, 0.6)';
+    flyer.style.transition = 'all 0.9s cubic-bezier(0.25, 1, 0.5, 1)';
+    flyer.style.opacity = '1';
+    
+    // 카메라 영상은 좌우반전 상태이므로 시작점에서도 좌우반전 적용
+    flyer.style.transform = 'scaleX(-1) rotate(0deg)';
+
+    document.body.appendChild(flyer);
+
+    // Reflow
+    void flyer.offsetWidth;
+
+    // 목표 위치로 애니메이션 적용 (날아가면서 원래 방향으로 회전하며 축소)
+    flyer.style.left = targetLeft + 'px';
+    flyer.style.top = targetTop + 'px';
+    flyer.style.width = targetWidth + 'px';
+    flyer.style.height = targetHeight + 'px';
+    flyer.style.transform = 'scaleX(1) rotate(360deg)';
+    flyer.style.borderRadius = '4px';
+    flyer.style.opacity = '0.95';
+
+    flyer.addEventListener('transitionend', () => {
+      // 애니메이션 끝나면 캔버스에 영구 렌더링하고 비행 이미지 제거
+      renderShootPreviewCanvas();
+      flyer.remove();
+    });
   }
 
   /**

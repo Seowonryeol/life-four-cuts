@@ -76,6 +76,11 @@
         </div>
       </div>
 
+      <!-- Frame Preview -->
+      <div class="frame-preview-container">
+        <canvas id="frame-preview" width="300" height="400" aria-label="프레임 미리보기"></canvas>
+      </div>
+
       <div class="button-group" style="margin-top: 40px;">
         <button id="btn-frame-back" class="btn-secondary" aria-label="시작 화면으로 이동">← 뒤로</button>
         <button id="btn-frame-next" class="btn-primary" aria-label="다음 단계로 이동">다음 →</button>
@@ -90,6 +95,7 @@
         <!-- Camera Area -->
         <div class="camera-container">
           <video id="camera-preview" autoplay playsinline muted aria-label="카메라 미리보기"></video>
+          <div id="pose-instruction" class="pose-instruction-overlay hidden">포즈를 취해주세요! 📸</div>
           <div id="countdown-number" class="countdown-overlay" aria-live="polite"></div>
           <div id="camera-flash" class="flash-overlay" aria-hidden="true"></div>
         </div>
@@ -100,7 +106,9 @@
             <span class="shot-current">1</span>
             <span class="shot-total"> / 4</span>
           </div>
-          <div id="photo-thumbs" class="thumb-grid" aria-label="촬영된 사진 미리보기"></div>
+          <div class="shoot-preview-frame-container">
+            <canvas id="shoot-preview-canvas" aria-label="실시간 촬영 프레임 미리보기"></canvas>
+          </div>
           <button id="btn-retake" class="btn-secondary" aria-label="처음부터 다시 촬영">🔄 다시 찍기</button>
           <button id="btn-shoot-back" class="btn-secondary" aria-label="프레임 선택 화면으로 이동">← 뒤로</button>
         </aside>

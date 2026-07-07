@@ -587,7 +587,7 @@ input {
 
 /* Shoot Sidebar */
 .shoot-sidebar {
-  width: 120px;
+  width: 180px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -616,34 +616,60 @@ input {
   color: var(--text-secondary);
 }
 
-.thumb-grid {
+.shoot-preview-frame-container {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
   flex: 1;
-  overflow-y: auto;
-  width: 100%;
-}
-
-.photo-thumb {
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  border-radius: var(--radius-sm);
   overflow: hidden;
-  border: 2px solid var(--glass-border);
-  background: var(--bg-card);
-  animation: thumb-pop 0.35s var(--ease-out-back);
-}
-
-.photo-thumb img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  padding: 8px 4px;
 }
 
-.photo-thumb.active-thumb {
-  border-color: var(--neon-blue);
-  box-shadow: var(--shadow-neon-blue);
+#shoot-preview-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+}
+
+/* Pose Instruction Overlay */
+.pose-instruction-overlay {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 212, 255, 0.85);
+  color: #fff;
+  padding: 12px 28px;
+  font-size: 22px;
+  font-weight: 700;
+  border-radius: 30px;
+  box-shadow: 0 8px 25px rgba(0, 212, 255, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 12;
+  pointer-events: none;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  animation: pulse-instruction 1.5s infinite alternate ease-in-out;
+}
+
+.pose-instruction-overlay.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
+  pointer-events: none;
+}
+
+@keyframes pulse-instruction {
+  from {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 8px 25px rgba(0, 212, 255, 0.4);
+  }
+  to {
+    transform: translateX(-50%) scale(1.06);
+    box-shadow: 0 8px 35px rgba(0, 212, 255, 0.6);
+  }
 }
 
 #btn-retake {
