@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="인생네컷 포토부스 — 프리미엄 셀프 사진 촬영 및 편집 앱. 다양한 프레임, 필터, 스티커로 나만의 특별한 네 컷 사진을 만들어 보세요.">
+  <meta name="theme-color" content="#08081a">
+  <title>인생네컷 Photo Booth</title>
+
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+  <!-- ═══ Splash / Loading Screen ═══ -->
+  <div id="splash-screen" aria-label="로딩 중">
+    <div class="splash-spinner"></div>
+    <span class="splash-text">LOADING</span>
+  </div>
+
+  <!-- ═══ App Container ═══ -->
+  <div id="app">
+
+    <!-- ═══════════════════════════════════════════════════════
+         SCREEN 1 — START
+         ═══════════════════════════════════════════════════════ -->
+    <section id="screen-start" class="screen active" aria-label="시작 화면">
+      <!-- Decorative bokeh background -->
+      <div class="bokeh-layer" aria-hidden="true">
+        <div class="bokeh-particle"></div>
+        <div class="bokeh-particle"></div>
+        <div class="bokeh-particle"></div>
+        <div class="bokeh-particle"></div>
+      </div>
+
+      <div class="start-content">
+        <div class="start-icon float-animation" aria-hidden="true">📷</div>
+        <h1 class="gradient-text">인생네컷</h1>
+        <p class="subtitle">PHOTO BOOTH</p>
+        <p class="instruction">화면을 터치하여 촬영을 시작하세요</p>
+        <button id="btn-start" class="btn-primary" aria-label="촬영 시작하기">
+          📸 시작하기
+        </button>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SCREEN 2 — FRAME SELECTION
+         ═══════════════════════════════════════════════════════ -->
+    <section id="screen-frame" class="screen" aria-label="프레임 선택 화면">
+      <header class="screen-header">
+        <nav class="step-indicator" aria-label="진행 단계">
+          <span class="step-dot done" aria-label="완료"></span>
+          <span class="step-dot active" aria-label="현재 단계: 프레임 선택"></span>
+          <span class="step-dot" aria-label="촬영"></span>
+          <span class="step-dot" aria-label="편집"></span>
+          <span class="step-dot" aria-label="완료"></span>
+        </nav>
+        <h2>프레임을 선택하세요</h2>
+      </header>
+
+      <div class="frame-options">
+        <!-- Layout Options -->
+        <div class="option-group">
+          <label>레이아웃</label>
+          <div class="layout-options">
+            <button class="frame-layout-option active" data-layout="strip">
+              <span class="icon">▤</span> 세로 4컷
+            </button>
+            <button class="frame-layout-option" data-layout="grid">
+              <span class="icon">⊞</span> 2×2 그리드
+            </button>
+          </div>
+        </div>
+
+        <!-- Color Options -->
+        <div class="option-group">
+          <label>색상</label>
+          <div class="color-options">
+            <button id="color-black" class="color-swatch active" data-color="#000000" style="background-color: #000000;" aria-label="검정색" aria-pressed="true"></button>
+            <button id="color-white" class="color-swatch" data-color="#ffffff" style="background-color: #ffffff;" aria-label="흰색" aria-pressed="false"></button>
+            <button id="color-pink" class="color-swatch" data-color="#ffb6c1" style="background-color: #ffb6c1;" aria-label="분홍색" aria-pressed="false"></button>
+            <button id="color-gray" class="color-swatch" data-color="#888899" style="background-color: #888899;" aria-label="회색" aria-pressed="false"></button>
+            <button id="color-neon-blue" class="color-swatch" data-color="#00d4ff" style="background-color: #00d4ff;" aria-label="네온 블루" aria-pressed="false"></button>
+            <button id="color-neon-purple" class="color-swatch" data-color="#b44dff" style="background-color: #b44dff;" aria-label="네온 퍼플" aria-pressed="false"></button>
+          </div>
+        </div>
+
+        <!-- Style Options -->
+        <div class="option-group">
+          <label>배경 이미지</label>
+          <div class="style-options">
+            <button class="frame-style-option active" data-bg="none">단색</button>
+            <button class="frame-style-option" data-bg="bg1">배경 1</button>
+            <button class="frame-style-option" data-bg="bg2">배경 2</button>
+            <button class="frame-style-option" data-bg="bg3">배경 3</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frame Preview -->
+      <div class="frame-preview-container">
+        <canvas id="frame-preview" width="300" height="400" aria-label="프레임 미리보기"></canvas>
+      </div>
+
+      <div class="button-group">
+        <button id="btn-frame-back" class="btn-secondary" aria-label="시작 화면으로 이동">← 뒤로</button>
+        <button id="btn-frame-next" class="btn-primary" aria-label="다음 단계로 이동">다음 →</button>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SCREEN 3 — SHOOTING
+         ═══════════════════════════════════════════════════════ -->
+    <section id="screen-shoot" class="screen" aria-label="촬영 화면">
+      <div class="shoot-layout">
+        <!-- Camera Area -->
+        <div class="camera-container">
+          <video id="camera-preview" autoplay playsinline muted aria-label="카메라 미리보기"></video>
+          <div id="countdown-number" class="countdown-overlay" aria-live="polite"></div>
+          <div id="camera-flash" class="flash-overlay" aria-hidden="true"></div>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="shoot-sidebar">
+          <div id="shot-indicator" class="glass-panel" aria-label="촬영 진행 상태">
+            <span class="shot-current">1</span>
+            <span class="shot-total"> / 4</span>
+          </div>
+          <div id="photo-thumbs" class="thumb-grid" aria-label="촬영된 사진 미리보기"></div>
+          <button id="btn-retake" class="btn-secondary" aria-label="처음부터 다시 촬영">🔄 다시 찍기</button>
+          <button id="btn-shoot-back" class="btn-secondary" aria-label="프레임 선택 화면으로 이동">← 뒤로</button>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SCREEN 4 — EDIT
+         ═══════════════════════════════════════════════════════ -->
+    <section id="screen-edit" class="screen" aria-label="편집 화면">
+      <header class="screen-header">
+        <nav class="step-indicator" aria-label="진행 단계">
+          <span class="step-dot done"></span>
+          <span class="step-dot done"></span>
+          <span class="step-dot done"></span>
+          <span class="step-dot active" aria-label="현재 단계: 편집"></span>
+          <span class="step-dot"></span>
+        </nav>
+        <h2>사진을 꾸며보세요</h2>
+      </header>
+
+      <!-- Edit Preview -->
+      <div class="edit-preview-container">
+        <canvas id="edit-canvas" width="600" height="800" aria-label="편집 미리보기 캔버스"></canvas>
+      </div>
+
+      <!-- Edit Controls -->
+      <div class="edit-controls">
+        <div class="tab-bar" role="tablist" aria-label="편집 도구 탭">
+          <button id="tab-filters" class="tab-btn active" data-tab="filters" role="tab" aria-selected="true" aria-controls="filter-list">🎨 필터</button>
+          <button id="tab-stickers" class="tab-btn" data-tab="stickers" role="tab" aria-selected="false" aria-controls="sticker-list">✨ 스티커</button>
+        </div>
+        <div id="filter-list" class="tab-content active" role="tabpanel" aria-labelledby="tab-filters">
+          <!-- Populated dynamically by app.js -->
+        </div>
+        <div id="sticker-list" class="tab-content" role="tabpanel" aria-labelledby="tab-stickers">
+          <!-- Populated dynamically by app.js -->
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button id="btn-edit-back" class="btn-secondary" aria-label="촬영 화면으로 이동">← 뒤로</button>
+        <button id="btn-edit-done" class="btn-primary" aria-label="편집 완료">완료 →</button>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SCREEN 5 — RESULT
+         ═══════════════════════════════════════════════════════ -->
+    <section id="screen-result" class="screen" aria-label="결과 화면">
+      <header class="screen-header">
+        <nav class="step-indicator" aria-label="진행 단계">
+          <span class="step-dot done"></span>
+          <span class="step-dot done"></span>
+          <span class="step-dot done"></span>
+          <span class="step-dot done"></span>
+          <span class="step-dot active" aria-label="현재 단계: 완성"></span>
+        </nav>
+        <h2>완성! 🎉</h2>
+      </header>
+
+      <!-- Result Image -->
+      <div class="result-preview">
+        <img id="result-image" src="" alt="완성된 인생네컷 사진">
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button id="btn-download" class="btn-primary" aria-label="사진 저장하기">📥 저장하기</button>
+        <button id="btn-qr" class="btn-secondary" aria-label="QR 코드 생성">📱 QR 코드</button>
+        <button id="btn-email" class="btn-secondary" aria-label="이메일로 전송">✉️ 이메일</button>
+      </div>
+
+      <!-- QR Code Panel -->
+      <div id="qr-container" class="glass-panel hidden" aria-label="QR 코드 패널">
+        <p>스마트폰으로 QR 코드를 스캔하세요</p>
+        <div id="qr-code" aria-label="QR 코드"></div>
+        <button id="btn-qr-close" class="btn-close" aria-label="QR 코드 닫기">✕</button>
+      </div>
+
+      <!-- Email Panel -->
+      <div id="email-container" class="glass-panel hidden" aria-label="이메일 전송 패널">
+        <p>이메일 주소를 입력하세요</p>
+        <div class="email-form">
+          <input id="email-input" type="email" placeholder="example@email.com" aria-label="이메일 주소 입력" autocomplete="email">
+          <button id="btn-email-send" class="btn-primary" aria-label="이메일 전송">전송</button>
+        </div>
+        <button id="btn-email-close" class="btn-close" aria-label="이메일 패널 닫기">✕</button>
+      </div>
+
+      <!-- Restart & Back -->
+      <div class="button-group" style="margin-top: 16px;">
+        <button id="btn-result-back" class="btn-secondary" aria-label="편집 화면으로 이동">← 편집하기</button>
+        <button id="btn-restart" class="btn-secondary" aria-label="처음으로 돌아가기">🏠 처음으로</button>
+      </div>
+    </section>
+
+  </div><!-- /#app -->
+
+  <!-- ═══ Inline Splash Fade Script ═══ -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var splash = document.getElementById('splash-screen');
+      if (splash) {
+        setTimeout(function () {
+          splash.classList.add('fade-out');
+          setTimeout(function () {
+            splash.remove();
+          }, 700);
+        }, 600);
+      }
+    });
+  </script>
+
+</body>
+</html>
