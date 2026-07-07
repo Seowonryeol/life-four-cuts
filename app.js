@@ -1023,14 +1023,26 @@
     const total = getTotalShots();
 
     if (layoutName === 'strip') {
-      // 세로 나열 (가로 중앙 정렬)
-      const startX = (layout.canvasWidth - layout.photoWidth) / 2;
+      // 템플릿 적용 여부에 따라 슬롯 규격 동적 변경 (템플릿 1, 2는 800x2400 기준으로 제작되어 600x1800 캔버스에 0.75배 축소 서빙됨)
+      let pw = layout.photoWidth;
+      let ph = layout.photoHeight;
+      let pad = layout.padding;
+      let gap = layout.gap;
+
+      if (state.frame.bg && state.frame.bg.startsWith('vert4_')) {
+        pw = 540; // 720 * 0.75
+        ph = 343; // 457 * 0.75
+        pad = 33; // 44 * 0.75
+        gap = 31; // 41 * 0.75
+      }
+
+      const startX = (layout.canvasWidth - pw) / 2;
       for (let i = 0; i < total; i++) {
         positions.push({
           x: startX,
-          y: layout.padding + i * (layout.photoHeight + layout.gap),
-          width: layout.photoWidth,
-          height: layout.photoHeight
+          y: pad + i * (ph + gap),
+          width: pw,
+          height: ph
         });
       }
     } else if (layoutName === 'grid') {
@@ -1220,9 +1232,11 @@
       drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
       ctx.filter = 'none'; // 필터 초기화
 
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+      if (state.frame.bg === 'none') {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+      }
 
       ctx.restore();
     }
