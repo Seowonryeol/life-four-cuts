@@ -212,11 +212,23 @@
    * getUserMedia로 카메라 스트림을 가져와 비디오 요소에 연결합니다.
    */
   async function initCamera() {
+    // navigator.mediaDevices 가 없는 경우 (HTTP에서 스마트폰/태블릿 접속 등)
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      const isHttp = location.protocol === 'http:';
+      const msg = isHttp
+        ? '카메라를 사용하려면 HTTPS 연결이 필요합니다.\n\n' +
+          'Wi-Fi 환경에서 같은 주소로 접속하거나,\n' +
+          'localhost.run 터널(https://)을 통해 접속해 주세요.'
+        : '이 기기 또는 브라우저에서 카메라를 지원하지 않습니다.\n카메라 접근 권한을 확인해 주세요.';
+      alert(msg);
+      return;
+    }
+
     try {
       const constraints = {
         video: {
-          width: CONFIG.camera.width,
-          height: CONFIG.camera.height,
+          width:      CONFIG.camera.width,
+          height:     CONFIG.camera.height,
           facingMode: CONFIG.camera.facingMode
         },
         audio: false
@@ -238,7 +250,6 @@
     } catch (error) {
       console.error('카메라 초기화 실패:', error);
 
-      // 사용자에게 한국어 오류 메시지 표시
       let message = '카메라를 시작할 수 없습니다.\n';
       if (error.name === 'NotAllowedError') {
         message += '카메라 접근 권한을 허용해 주세요.';
@@ -843,7 +854,15 @@
       return { normX: clamp(normX, 0, 1), normY: clamp(normY, 0, 1) };
     }
 
-    // 삭제 버튼 히트 테스트
+    // ─────────────────────────────────────────────────────────────
+    // 렌더링과 동일한 좌표계로 히트 테스트:
+    //   renderStickersOnCanvas 는 ctx.translate(x*cW, y*cH) 후
+    //   삭제버튼 중심 = (halfSize,        -halfSize)
+    //   리사이즈핸들 = (halfSize,          halfSize)
+    //   모두 norm 좌표로 변환해서 비교합니다.
+    // ─────────────────────────────────────────────────────────────
+
+    // 삭제 버튼 히트 테스트  (우상단)
     function isDeleteButtonHit(stickerIndex, normX, normY) {
       const s = state.stickers[stickerIndex];
       if (!s) return false;
@@ -851,19 +870,24 @@
       const canvasW = canvas.width;
       const canvasH = canvas.height;
       const fontSize = s.size * canvasW;
-      const halfSize = fontSize / 2 + 4;
+      const halfSize = fontSize / 2 + 4;   // px
+      const btnR     = 12;                  // px — 원 반지름
 
-      // 삭제 버튼은 스티커 우상단에 위치
-      const btnCenterX = (s.x * canvasW + halfSize) / canvasW;
-      const btnCenterY = (s.y * canvasH - halfSize) / canvasH;
-      const btnRadius = 20 / canvasW;
+      // 캔버스 px 좌표 (translate 기준)
+      const btnCxPx = s.x * canvasW + halfSize;   // 우상단
+      const btnCyPx = s.y * canvasH - halfSize;
 
-      const dx = normX - btnCenterX;
-      const dy = normY - btnCenterY;
-      return Math.sqrt(dx * dx + dy * dy) < btnRadius * 2;
+      // norm 좌표로 변환
+      const btnCxN = btnCxPx / canvasW;
+      const btnCyN = btnCyPx / canvasH;
+      const hitR   = (btnR + 8) / canvasW;  // 여유 범위 추가
+
+      const dx = normX - btnCxN;
+      const dy = normY - btnCyN;
+      return Math.sqrt(dx * dx + dy * dy) < hitR;
     }
 
-    // 크기 조절 핸들 히트 테스트
+    // 크기 조절 핸들 히트 테스트  (우하단 원)
     function isResizeHandleHit(stickerIndex, normX, normY) {
       const s = state.stickers[stickerIndex];
       if (!s) return false;
@@ -871,15 +895,21 @@
       const canvasW = canvas.width;
       const canvasH = canvas.height;
       const fontSize = s.size * canvasW;
-      const halfSize = fontSize / 2 + 4;
+      const halfSize = fontSize / 2 + 4;   // px
+      const handleR  = 8;                   // px — 원 반지름 (renderStickersOnCanvas 와 동일)
 
-      const handleX = (s.x * canvasW + halfSize) / canvasW;
-      const handleY = (s.y * canvasH + halfSize) / canvasH;
-      const handleRadius = 12 / canvasW;
+      // 캔버스 px 좌표 (translate 기준)
+      const hxPx = s.x * canvasW + halfSize;  // 우하단
+      const hyPx = s.y * canvasH + halfSize;
 
-      const dx = normX - handleX;
-      const dy = normY - handleY;
-      return Math.sqrt(dx * dx + dy * dy) < handleRadius * 2;
+      // norm 좌표로 변환
+      const hxN  = hxPx / canvasW;
+      const hyN  = hyPx / canvasH;
+      const hitR = (handleR + 12) / canvasW;  // 여유 범위 추가
+
+      const dx = normX - hxN;
+      const dy = normY - hyN;
+      return Math.sqrt(dx * dx + dy * dy) < hitR;
     }
 
     let isResizing = false;
@@ -901,9 +931,17 @@
       if (state.selectedSticker !== null && isResizeHandleHit(state.selectedSticker, normX, normY)) {
         isResizing = true;
         const s = state.stickers[state.selectedSticker];
+        // 핸들(우하단) 중심까지의 거리를 기준으로 리사이즈
+        const canvasW = canvas.width;
+        const canvasH = canvas.height;
+        const fontSize = s.size * canvasW;
+        const halfSize = fontSize / 2 + 4;
+        const handleNX = (s.x * canvasW + halfSize) / canvasW;
+        const handleNY = (s.y * canvasH + halfSize) / canvasH;
         resizeStartDist = Math.sqrt(
-          Math.pow(normX - s.x, 2) + Math.pow(normY - s.y, 2)
+          Math.pow(normX - handleNX, 2) + Math.pow(normY - handleNY, 2)
         );
+        if (resizeStartDist < 0.001) resizeStartDist = 0.001; // 0 나누기 방지
         resizeStartSize = s.size;
         return;
       }
@@ -946,13 +984,19 @@
       const { normX, normY } = getCanvasCoords(e);
 
       if (isResizing && state.selectedSticker !== null) {
-        // 크기 조절
+        // 크기 조절: 핸들 중심을 기준으로 거리 계산
         const s = state.stickers[state.selectedSticker];
+        const canvasW = canvas.width;
+        const canvasH = canvas.height;
+        const prevFontSize = s.size * canvasW;
+        const prevHalf    = prevFontSize / 2 + 4;
+        const handleNX    = (s.x * canvasW + prevHalf) / canvasW;
+        const handleNY    = (s.y * canvasH + prevHalf) / canvasH;
         const currentDist = Math.sqrt(
-          Math.pow(normX - s.x, 2) + Math.pow(normY - s.y, 2)
+          Math.pow(normX - handleNX, 2) + Math.pow(normY - handleNY, 2)
         );
         const scale = currentDist / resizeStartDist;
-        s.size = clamp(resizeStartSize * scale, 0.03, 0.25);
+        s.size = clamp(resizeStartSize * scale, 0.03, 0.30);
         renderEditCanvas();
         return;
       }
@@ -1355,20 +1399,15 @@
     // 사진 슬롯 위치
     const positions = getPhotoPositions(state.frame.layout, layout);
 
-    // 플레이스홀더 사각형 그리기
-    const brightness = getColorBrightness(state.frame.color);
-    const placeholderColor = brightness > 128 ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)';
-    const textColor = brightness > 128 ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.3)';
-
     positions.forEach((pos, index) => {
       ctx.save();
 
-      // 플레이스홀더
-      ctx.fillStyle = placeholderColor;
+      // 사진 칸 플레이스홀더 — 항상 흰색
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(pos.x, pos.y, pos.width, pos.height);
 
       // 번호 텍스트
-      ctx.fillStyle = textColor;
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
       ctx.font = 'bold 48px "Pretendard", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
