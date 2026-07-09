@@ -1154,17 +1154,11 @@
     const total = getTotalShots();
 
     // 세로 4컷(strip) 전용
-    let pw = layout.photoWidth;
-    let ph = layout.photoHeight;
-    let pad = layout.padding;
-    let gap = layout.gap;
+    let pw = 540;
+    let ph = 380;
+    let pad = 44; // 기존 30/33보다 좀 더 아래로 내려감
+    let gap = 14; 
 
-    if (state.frame.bg && state.frame.bg.startsWith('vert4_')) {
-      pw  = 540; // 720 * 0.75
-      ph  = 343; // 457 * 0.75
-      pad = 33;  // 44 * 0.75
-      gap = 31;  // 41 * 0.75
-    }
 
     const startX = (layout.canvasWidth - pw) / 2;
     for (let i = 0; i < total; i++) {
@@ -1509,7 +1503,10 @@
       const dataURL = canvas.toDataURL('image/png', 0.9);
       const response = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true'
+        },
         body: JSON.stringify({ image: dataURL })
       });
       const data = await response.json();
@@ -1613,7 +1610,10 @@
       // 서버로 이메일 전송 요청
       const response = await fetch('/api/email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true'
+        },
         body: JSON.stringify({ email, imageUrl: state.uploadedImageUrl })
       });
       
