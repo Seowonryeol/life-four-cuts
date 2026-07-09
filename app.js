@@ -224,6 +224,9 @@
       return;
     }
 
+    // 기존 스트림이 남아있다면 정지
+    stopCamera();
+
     try {
       const constraints = {
         video: {
@@ -1154,11 +1157,10 @@
     const total = getTotalShots();
 
     // 세로 4컷(strip) 전용
-    let pw = 540;
-    let ph = 380;
-    let pad = 44; // 기존 30/33보다 좀 더 아래로 내려감
-    let gap = 14; 
-
+    let pw = layout.photoWidth;
+    let ph = layout.photoHeight;
+    let pad = layout.padding;
+    let gap = layout.gap;
 
     const startX = (layout.canvasWidth - pw) / 2;
     for (let i = 0; i < total; i++) {
@@ -2171,6 +2173,16 @@
    * 전역 이벤트 리스너를 설정하고 시작 화면을 표시합니다.
    */
   document.addEventListener('DOMContentLoaded', () => {
+
+    // --- 앱 복귀 시 카메라 권한/스트림 복구 ---
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && state.currentScreen === 'shoot') {
+        if (!state.cameraStream || !state.cameraStream.active) {
+          console.log('앱으로 복귀: 카메라를 다시 시작합니다.');
+          initCamera();
+        }
+      }
+    });
 
     // --- 전체 화면 시도 (첫 터치 시) ---
     let fullscreenAttempted = false;

@@ -96,11 +96,13 @@
     <section id="screen-shoot" class="screen" aria-label="촬영 화면">
       <div class="shoot-layout">
         <!-- Camera Area -->
-        <div class="camera-container">
-          <video id="camera-preview" autoplay playsinline muted aria-label="카메라 미리보기"></video>
-          <div id="pose-instruction" class="pose-instruction-overlay hidden">포즈를 취해주세요! 📸</div>
-          <div id="countdown-number" class="countdown-overlay" aria-live="polite"></div>
-          <div id="camera-flash" class="flash-overlay" aria-hidden="true"></div>
+        <div class="camera-container" aria-live="polite">
+          <div class="camera-aspect-box">
+            <video id="camera-preview" autoplay playsinline muted aria-label="카메라 미리보기"></video>
+            <div id="pose-instruction" class="pose-instruction-overlay hidden">포즈를 취해주세요! 📸</div>
+            <div id="countdown-number" class="countdown-overlay" aria-live="polite"></div>
+            <div id="camera-flash" class="flash-overlay" aria-hidden="true"></div>
+          </div>
         </div>
 
         <!-- Sidebar -->

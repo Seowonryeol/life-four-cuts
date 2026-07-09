@@ -346,18 +346,34 @@ input { font-family: inherit; outline: none; border: none; }
   background: #000;
 }
 
+.camera-aspect-box {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 540 / 380;
+  background: #111;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+
 #camera-preview {
+  position: absolute;
+  top: 0; left: 0;
   width: 100%; height: 100%;
-  object-fit: cover; transform: scaleX(-1); border-radius: 0;
+  object-fit: cover; transform: scaleX(-1);
 }
 
 /* Countdown Overlay */
 .countdown-overlay {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 160px; font-weight: 800; color: #fff;
+  font-size: min(20vw, 160px); font-weight: 800; color: #fff;
   text-shadow: 0 0 40px rgba(0,212,255,0.6), 0 0 80px rgba(0,212,255,0.3);
-  pointer-events: none; z-index: 10; opacity: 0;
+  opacity: 0; transform: scale(0.5); pointer-events: none;
+  z-index: 10;
 }
 .countdown-overlay.visible { opacity: 1; animation: countdown-pop 0.6s var(--ease-out-back); }
 .countdown-overlay.countdown-pop { animation: countdown-pop 0.5s var(--ease-out-back) forwards; }
@@ -438,15 +454,20 @@ input { font-family: inherit; outline: none; border: none; }
 
 .edit-preview-container {
   flex: 0 0 auto;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: flex-start; justify-content: center;
   background: #000;
-  max-height: 45vh;  /* cap height on mobile */
-  overflow: hidden;
+  max-height: 50vh;  /* slightly larger on mobile */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 0;
 }
 
 #edit-canvas {
-  max-width: 100%; max-height: 100%;
+  max-width: 90%;
+  height: auto !important; /* Allow fabric.js inline height to be overridden or handled */
+  max-height: none;
   border-radius: 0;
+
   box-shadow: var(--shadow-card);
   cursor: crosshair;
   touch-action: none;
