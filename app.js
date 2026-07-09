@@ -14,44 +14,26 @@
   // ============================================================
 
   const CONFIG = {
-    countdown: 5,       // 촬영당 카운트다운 초
+    countdown: 5,       // 촬영당 카운트다운 초 (첫 컷은 별도로 10초 적용)
     totalShots: 4,      // 총 촬영 매수
     camera: {
-      width: { ideal: 1920 },
+      width:  { ideal: 1920 },
       height: { ideal: 1080 },
       facingMode: 'user'
     },
-    canvas: {
-      outputWidth: 1200,   // 최종 합성 이미지 너비
-      outputHeight: 1800   // 최종 합성 이미지 높이 (스트립용)
-    },
-    // 프레임 레이아웃별 치수
+    // 세로 4컷 전용 레이아웃 설정
     layouts: {
       strip: {
-        canvasWidth: 600,
+        canvasWidth:  600,
         canvasHeight: 1800,
-        photoWidth: 540,
-        photoHeight: 380,
+        photoWidth:   540,
+        photoHeight:  380,
         padding: 30,
-        gap: 15
-      },
-      grid: {
-        canvasWidth: 1200,
-        canvasHeight: 1200,
-        photoWidth: 560,
-        photoHeight: 400,
-        padding: 40,
-        gap: 20
+        gap:     15
       }
     },
-    // JPEG 캡처 품질
     captureQuality: 0.95,
-    // 썸네일 QR용 압축 설정
-    qrThumbnail: {
-      width: 100,
-      height: 150,
-      quality: 0.3
-    }
+    qrThumbnail: { width: 100, height: 150, quality: 0.3 }
   };
 
 
@@ -62,27 +44,30 @@
   const state = {
     currentScreen: 'start',
     frame: {
-      layout: 'strip',       // 'strip' | 'grid'
-      color: '#000000',       // 프레임 배경색
-      bg: 'none',             // 'none' | 'bg1' | 'bg2' | 'bg3' | 'vert4_bg1' | 'vert4_bg2'
-      deco: 'none'            // 'none' | 'vert4_deco1' | 'vert4_deco2'
+      layout: 'strip',    // 세로 4컷 고정
+      color:  '#000000',  // 프레임 배경색
+      bg:     'none',     // 배경 이미지 키
+      deco:   'none'      // 데코 이미지 키
     },
-    bgImages: {},
+    bgImages:   {},
     decoImages: {},
-    photos: [],               // 캡처된 이미지 Data URL 배열
-    currentShot: 0,           // 현재 촬영 인덱스 (0-3)
-    filter: 'none',           // 선택된 필터 이름
-    stickers: [],             // {id, emoji, x, y, size, rotation} 배열
-    cameraStream: null,       // MediaStream 참조
-    countdownTimer: null,     // 카운트다운 타이머 ID
-    selectedSticker: null,    // 선택/드래그 중인 스티커 인덱스
-    pendingStickerEmoji: null, // 배치 대기 중인 스티커 이모지
-    composedCanvas: null,     // 최종 합성 캔버스
-    isDragging: false,        // 스티커 드래그 상태
-    dragOffset: { x: 0, y: 0 }, // 드래그 오프셋
-    stickerIdCounter: 0,      // 스티커 고유 ID 카운터
-    uploadedImageUrl: null,   // 업로드된 이미지 다운로드 주소
-    hostedPageUrl: null       // QR용 이미지 호스팅 웹페이지 주소
+    photos:          [],   // 캡처된 이미지 Data URL 배열
+    currentShot:      0,   // 현재 촬영 인덱스 (0-3)
+    filter:       'none',  // 선택된 필터 이름
+    stickers:        [],   // {id, emoji, x, y, size, rotation} 배열
+    cameraStream:  null,
+    countdownTimer: null,
+    selectedSticker: null,
+    pendingStickerEmoji: null,  // 마우스로 따라다니는 배치 대기 스티커
+    composedCanvas:  null,
+    isDragging:     false,
+    isResizing:     false,
+    dragOffset:     { x: 0, y: 0 },
+    resizeStartDist: 0,
+    resizeStartSize: 0,
+    stickerIdCounter: 0,
+    uploadedImageUrl: null,
+    hostedPageUrl:    null
   };
 
   function getTotalShots() {
@@ -500,11 +485,16 @@
    * 사용 가능한 이미지 필터 목록
    */
   const FILTERS = [
-    { name: 'none', label: '원본', filterStr: 'none' },
-    { name: 'bw', label: '흑백', filterStr: 'grayscale(100%)' },
-    { name: 'soft', label: '부드러운', filterStr: 'brightness(110%) contrast(90%) saturate(90%)' },
-    { name: 'vivid', label: '생기있는', filterStr: 'saturate(140%) contrast(110%)' },
-    { name: 'vintage', label: '빈티지', filterStr: 'sepia(60%) contrast(110%) brightness(90%)' }
+    { name: 'none',    label: '원본',    filterStr: 'none' },
+    { name: 'bw',      label: '흑백',    filterStr: 'grayscale(100%)' },
+    { name: 'soft',    label: '부드러운', filterStr: 'brightness(115%) contrast(85%) saturate(80%)' },
+    { name: 'vivid',   label: '생동감',  filterStr: 'saturate(150%) contrast(115%) brightness(105%)' },
+    { name: 'vintage', label: '빈티지',  filterStr: 'sepia(55%) contrast(108%) brightness(92%)' },
+    { name: 'cool',    label: '쿨톤',    filterStr: 'hue-rotate(20deg) saturate(110%) brightness(105%)' },
+    { name: 'warm',    label: '웜톤',    filterStr: 'hue-rotate(-15deg) saturate(120%) brightness(108%)' },
+    { name: 'film',    label: '필름',    filterStr: 'contrast(95%) brightness(90%) saturate(110%) sepia(20%)' },
+    { name: 'fade',    label: '페이드',  filterStr: 'brightness(120%) contrast(85%) saturate(70%) opacity(90%)' },
+    { name: 'neon',    label: '네온',    filterStr: 'saturate(200%) contrast(130%) brightness(90%) hue-rotate(10deg)' }
   ];
 
   /**
@@ -587,13 +577,37 @@
   // ============================================================
 
   /**
-   * 사용 가능한 스티커 이모지 목록
+   * 스티커 카테고리 목록
    */
-  const STICKER_EMOJIS = [
-    '❤️', '💕', '💖', '✨', '⭐', '🌟', '👑', '🎀',
-    '🌸', '🌺', '🦋', '🌈', '😊', '😍', '🥰', '😎',
-    '🎉', '🎊', '💫', '🔥', '💎', '🍀', '🌙', '☀️'
+  const STICKER_CATEGORIES = [
+    {
+      label: '하트 & 사랑',
+      emojis: ['❤️','💕','💖','💗','💓','💞','💘','💝','💟','🥰','🥳','🤗']
+    },
+    {
+      label: '사진 & 구도시',
+      emojis: ['📸','🎥','💋','🥳','🎉','🎊','🎈','🎂','🎆','🎇','✨','💫']
+    },
+    {
+      label: '폴 & 자연',
+      emojis: ['🌸','🌹','🌺','🌻','🌼','🌷','🌶️','🌽','🦄','🦴','🌈','🌙']
+    },
+    {
+      label: '표정 & 캐릭터',
+      emojis: ['😊','😄','😘','😗','🤗','🤩','😎','🥳','😱','🤪','🙏','👌']
+    },
+    {
+      label: '서신 & 킹',
+      emojis: ['☆','🌟','💫','🍌','💎','👑','🎠','🎄','🔮','🎀','🦄','🌈']
+    },
+    {
+      label: '터치 & 프레임',
+      emojis: ['💌','🎁','🧡','☀️','🌚','🗑️','🍜','☕','🎧','🍓','🍒','🍎']
+    }
   ];
+
+  // Flat list for backward compat
+  const STICKER_EMOJIS = STICKER_CATEGORIES.flatMap(c => c.emojis);
 
   /**
    * 스티커 팔레트를 #sticker-list에 렌더링합니다.
@@ -604,34 +618,96 @@
 
     container.innerHTML = '';
 
-    STICKER_EMOJIS.forEach(emoji => {
-      const item = createElement('div', 'sticker-item');
-      item.textContent = emoji;
-      item.dataset.emoji = emoji;
-      item.draggable = true;
+    STICKER_CATEGORIES.forEach(category => {
+      // Category label
+      const label = createElement('div', 'sticker-category-label');
+      label.textContent = category.label;
+      container.appendChild(label);
 
-      item.addEventListener('click', () => {
-        // 배치 대기 모드 활성화
-        state.pendingStickerEmoji = emoji;
+      // Sticker items in this category
+      category.emojis.forEach(emoji => {
+        const item = createElement('div', 'sticker-item');
+        item.textContent = emoji;
+        item.dataset.emoji = emoji;
+        item.draggable = true;
+        item.title = '더블클릭: 중앙 배치 / 클릭: 마우스 배치 모드';
 
-        // 활성 상태 표시
-        $$('.sticker-item.active', container).forEach(el => el.classList.remove('active'));
-        item.classList.add('active');
+        // Single click → activate "place on click" mode + cursor follower
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+
+          if (state.pendingStickerEmoji === emoji) {
+            // 같은 스티커 재클릭 → 취소
+            state.pendingStickerEmoji = null;
+            $$('.sticker-item.active', container).forEach(el => el.classList.remove('active'));
+            hideStickerCursor();
+          } else {
+            state.pendingStickerEmoji = emoji;
+            $$('.sticker-item.active', container).forEach(el => el.classList.remove('active'));
+            item.classList.add('active');
+            showStickerCursor(emoji);
+          }
+        });
+
+        // Double click → directly add to canvas center
+        item.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+
+          // Clear pending mode
+          state.pendingStickerEmoji = null;
+          $$('.sticker-item.active', container).forEach(el => el.classList.remove('active'));
+          hideStickerCursor();
+
+          addSticker(emoji, 0.5, 0.5);
+
+          // Visual feedback
+          item.style.transform = 'scale(0.8)';
+          setTimeout(() => { item.style.transform = ''; }, 250);
+        });
+
+        // Drag start for drag-and-drop onto canvas
+        item.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('emoji', emoji);
+          state.pendingStickerEmoji = null;
+          hideStickerCursor();
+          $$('.sticker-item.active', container).forEach(el => el.classList.remove('active'));
+        });
+
+        container.appendChild(item);
       });
-
-      // 더블 클릭 시 중앙에 자동 배치
-      item.addEventListener('dblclick', () => {
-        addSticker(emoji, 0.5, 0.5);
-      });
-
-      // 드래그 앤 드롭 시작
-      item.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('emoji', emoji);
-      });
-
-      container.appendChild(item);
     });
   }
+
+  /**
+   * 마우스 커서 팔로어 표시
+   */
+  function showStickerCursor(emoji) {
+    const cursor = $('#sticker-cursor');
+    if (!cursor) return;
+    cursor.textContent = emoji;
+    cursor.classList.add('visible');
+  }
+
+  /**
+   * 마우스 커서 팔로어 숨기기
+   */
+  function hideStickerCursor() {
+    const cursor = $('#sticker-cursor');
+    if (!cursor) return;
+    cursor.classList.remove('visible');
+    cursor.textContent = '';
+  }
+
+  /**
+   * 마우스 이동 시 커서 팔로어 위치 업데이트
+   */
+  document.addEventListener('mousemove', (e) => {
+    const cursor = $('#sticker-cursor');
+    if (!cursor || !cursor.classList.contains('visible')) return;
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top  = e.clientY + 'px';
+  });
 
   /**
    * 캔버스에 스티커를 추가합니다.
@@ -849,10 +925,13 @@
       // 4. 대기 중인 스티커 배치
       if (state.pendingStickerEmoji) {
         addSticker(state.pendingStickerEmoji, normX, normY);
+        const placed = state.pendingStickerEmoji;
         state.pendingStickerEmoji = null;
 
-        // 팔레트 활성 상태 해제
+        // 팔레트 활성 상태 해제 & 커서 팔로어 숨기기
         $$('.sticker-item.active').forEach(el => el.classList.remove('active'));
+        hideStickerCursor();
+        canvas.style.cursor = 'crosshair';
         return;
       }
 
@@ -893,43 +972,50 @@
       isResizing = false;
     }
 
-    // 더블 탭으로 크기 순환 (작은 → 중간 → 큰)
-    let lastTapTime = 0;
+    // 더블클릭/더블탭: 스티커 크기 순환
     function handleDoubleTap(e) {
-      const now = Date.now();
-      if (now - lastTapTime < 300) {
-        const { normX, normY } = getCanvasCoords(e);
-        const hitIndex = findStickerAt(normX, normY);
-        if (hitIndex >= 0) {
-          const s = state.stickers[hitIndex];
-          // 크기 순환: 0.06 → 0.1 → 0.15 → 0.06
-          if (s.size < 0.08) s.size = 0.1;
-          else if (s.size < 0.13) s.size = 0.15;
-          else s.size = 0.06;
+      e.preventDefault();
+      const { normX, normY } = getCanvasCoords(e);
+      const hitIndex = findStickerAt(normX, normY);
+      if (hitIndex >= 0) {
+        const s = state.stickers[hitIndex];
+        // 크기 순환: 소 → 중 → 대 → 소
+        if (s.size < 0.08) s.size = 0.12;
+        else if (s.size < 0.15) s.size = 0.2;
+        else s.size = 0.06;
 
-          state.selectedSticker = hitIndex;
-          renderEditCanvas();
-        }
+        state.selectedSticker = hitIndex;
+        renderEditCanvas();
       }
-      lastTapTime = now;
     }
 
-    // 이벤트 리스너 등록 (포인터 이벤트 우선, 폴백으로 터치 이벤트)
-    canvas.addEventListener('pointerdown', handlePointerDown, { passive: false });
-    canvas.addEventListener('pointermove', handlePointerMove, { passive: false });
-    canvas.addEventListener('pointerup', handlePointerUp);
+
+    // ── 이벤트 리스너 등록 (Pointer Events API — mouse + touch 통합) ──
+    canvas.addEventListener('pointerdown', (e) => {
+      canvas.setPointerCapture(e.pointerId); // 부드러운 드래그를 위해 캡처
+      handlePointerDown(e);
+    }, { passive: false });
+
+    canvas.addEventListener('pointermove', (e) => {
+      // 스티커 배치 대기 중 커서 변경
+      if (state.pendingStickerEmoji) {
+        canvas.style.cursor = 'copy';
+      } else {
+        const { normX, normY } = getCanvasCoords(e);
+        const hit = findStickerAt(normX, normY);
+        canvas.style.cursor = hit >= 0 ? 'grab' : 'crosshair';
+      }
+      handlePointerMove(e);
+    }, { passive: false });
+
+    canvas.addEventListener('pointerup',     handlePointerUp);
     canvas.addEventListener('pointercancel', handlePointerUp);
-    canvas.addEventListener('click', handleDoubleTap);
 
-    // 터치 이벤트 (포인터 이벤트 미지원 환경)
-    canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
-    canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
-    canvas.addEventListener('touchend', handlePointerUp);
+    // 더블클릭: 스티커 크기 순환
+    canvas.addEventListener('dblclick', handleDoubleTap);
 
-    // HTML5 Drag and Drop 이벤트 (팔레트에서 캔버스로)
-    canvas.addEventListener('dragover', (e) => {
-      e.preventDefault(); // 드롭 허용
-    });
+    // HTML5 Drag and Drop (팔레트 → 캔버스)
+    canvas.addEventListener('dragover', (e) => { e.preventDefault(); });
 
     canvas.addEventListener('drop', (e) => {
       e.preventDefault();
@@ -939,6 +1025,7 @@
         addSticker(emoji, normX, normY);
       }
     });
+
   }
 
 
@@ -1022,43 +1109,27 @@
     const positions = [];
     const total = getTotalShots();
 
-    if (layoutName === 'strip') {
-      // 템플릿 적용 여부에 따라 슬롯 규격 동적 변경 (템플릿 1, 2는 800x2400 기준으로 제작되어 600x1800 캔버스에 0.75배 축소 서빙됨)
-      let pw = layout.photoWidth;
-      let ph = layout.photoHeight;
-      let pad = layout.padding;
-      let gap = layout.gap;
+    // 세로 4컷(strip) 전용
+    let pw = layout.photoWidth;
+    let ph = layout.photoHeight;
+    let pad = layout.padding;
+    let gap = layout.gap;
 
-      if (state.frame.bg && state.frame.bg.startsWith('vert4_')) {
-        pw = 540; // 720 * 0.75
-        ph = 343; // 457 * 0.75
-        pad = 33; // 44 * 0.75
-        gap = 31; // 41 * 0.75
-      }
+    if (state.frame.bg && state.frame.bg.startsWith('vert4_')) {
+      pw  = 540; // 720 * 0.75
+      ph  = 343; // 457 * 0.75
+      pad = 33;  // 44 * 0.75
+      gap = 31;  // 41 * 0.75
+    }
 
-      const startX = (layout.canvasWidth - pw) / 2;
-      for (let i = 0; i < total; i++) {
-        positions.push({
-          x: startX,
-          y: pad + i * (ph + gap),
-          width: pw,
-          height: ph
-        });
-      }
-    } else if (layoutName === 'grid') {
-      // 2×2 그리드 (가로 중앙 정렬)
-      const totalWidth = layout.photoWidth * 2 + layout.gap;
-      const startX = (layout.canvasWidth - totalWidth) / 2;
-      for (let i = 0; i < total; i++) {
-        const col = i % 2;
-        const row = Math.floor(i / 2);
-        positions.push({
-          x: startX + col * (layout.photoWidth + layout.gap),
-          y: layout.padding + row * (layout.photoHeight + layout.gap),
-          width: layout.photoWidth,
-          height: layout.photoHeight
-        });
-      }
+    const startX = (layout.canvasWidth - pw) / 2;
+    for (let i = 0; i < total; i++) {
+      positions.push({
+        x: startX,
+        y: pad + i * (ph + gap),
+        width:  pw,
+        height: ph
+      });
     }
 
     return positions;
@@ -1607,34 +1678,8 @@
    * 프레임 선택 화면 초기화 (이제 레이아웃만 선택)
    */
   function initFrameScreen() {
-    // 레이아웃 옵션 이벤트
-    const layoutOptions = $$('.frame-layout-option[data-layout]');
-    layoutOptions.forEach(option => {
-      // 이전 리스너 제거를 위해 클론 교체
-      const clone = option.cloneNode(true);
-      option.parentNode.replaceChild(clone, option);
-
-      clone.addEventListener('click', () => {
-        layoutOptions.forEach(o => {
-          const el = document.querySelector(`.frame-layout-option[data-layout="${o.dataset.layout}"]`);
-          if (el) el.classList.remove('active');
-        });
-        clone.classList.add('active');
-        state.frame.layout = clone.dataset.layout;
-        
-        // 레이아웃 변경 시 배경/데코 초기화
-        state.frame.bg = 'none';
-        state.frame.deco = 'none';
-
-        // 변경된 레이아웃 미리보기 즉시 반영
-        renderFramePreview();
-      });
-
-      // 현재 선택 상태 반영
-      if (clone.dataset.layout === state.frame.layout) {
-        clone.classList.add('active');
-      }
-    });
+    // 세로 4컷 고정 – 레이아웃 선택 없음
+    state.frame.layout = 'strip';
 
     // 진입 시 초기 미리보기 렌더링
     renderFramePreview();
@@ -1874,11 +1919,13 @@
     // 카메라 정지
     stopCamera();
 
-    // 필터 및 기타 상태 초기화 (필터는 none, 스티커 클리어, 프레임 설정은 유지하여 유저가 뒤로갔다와도 저장되게 함)
+    // 필터 및 기타 상태 초기화
     state.filter = 'none';
     state.stickers = [];
     state.selectedSticker = null;
     state.pendingStickerEmoji = null;
+    state.isDragging = false;
+    hideStickerCursor();
 
     // 기본 활성 탭 설정 (프레임 설정 탭을 기본 활성화)
     $$('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1886,11 +1933,14 @@
     if (tabFrames) tabFrames.classList.add('active');
 
     const frameConfigList = $('#frame-config-list');
-    const filterList = $('#filter-list');
-    const stickerList = $('#sticker-list');
+    const filterList      = $('#filter-list');
+    const stickerList     = $('#sticker-list');
+    const stickerHint     = $('#sticker-hint');
     if (frameConfigList) frameConfigList.classList.add('active');
-    if (filterList) filterList.classList.remove('active');
-    if (stickerList) stickerList.classList.remove('active');
+    if (filterList)      filterList.classList.remove('active');
+    if (stickerList)     stickerList.classList.remove('active');
+    if (stickerHint)     stickerHint.style.display = 'none';
+
 
     // 프레임 색상 스와치 이벤트 설정
     const colorSwatches = $$('.color-swatch[data-color]');
@@ -1945,20 +1995,23 @@
 
         const tab = clone.dataset.tab;
 
+        // 탭 전환 시 스티커 배치 모드 취소
+        if (tab !== 'stickers' && state.pendingStickerEmoji) {
+          state.pendingStickerEmoji = null;
+          hideStickerCursor();
+          $$('.sticker-item.active').forEach(el => el.classList.remove('active'));
+        }
+
         // 탭 컨텐츠 전환
         const frameConfigList = $('#frame-config-list');
         const filterList = $('#filter-list');
         const stickerList = $('#sticker-list');
+        const stickerHint = $('#sticker-hint');
 
-        if (frameConfigList) {
-          frameConfigList.classList.toggle('active', tab === 'frames');
-        }
-        if (filterList) {
-          filterList.classList.toggle('active', tab === 'filters');
-        }
-        if (stickerList) {
-          stickerList.classList.toggle('active', tab === 'stickers');
-        }
+        if (frameConfigList) frameConfigList.classList.toggle('active', tab === 'frames');
+        if (filterList)      filterList.classList.toggle('active', tab === 'filters');
+        if (stickerList)     stickerList.classList.toggle('active', tab === 'stickers');
+        if (stickerHint)     stickerHint.style.display = (tab === 'stickers') ? 'block' : 'none';
       });
     });
   }
@@ -2144,6 +2197,8 @@
     const btnEditBack = $('#btn-edit-back');
     if (btnEditBack) {
       btnEditBack.addEventListener('click', () => {
+        hideStickerCursor();
+        state.pendingStickerEmoji = null;
         showScreen('shoot');
       });
     }
