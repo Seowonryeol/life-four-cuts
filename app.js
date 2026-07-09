@@ -252,19 +252,29 @@
       }
     } catch (error) {
       console.error('카메라 초기화 실패:', error);
-
-      let message = '카메라를 시작할 수 없습니다.\n';
-      if (error.name === 'NotAllowedError') {
-        message += '카메라 접근 권한을 허용해 주세요.';
-      } else if (error.name === 'NotFoundError') {
-        message += '카메라를 찾을 수 없습니다. 카메라가 연결되어 있는지 확인해 주세요.';
-      } else if (error.name === 'NotReadableError') {
-        message += '다른 앱에서 카메라를 사용 중일 수 있습니다.';
-      } else {
-        message += `오류: ${error.message}`;
+      const isNotAllowed = error.name === 'NotAllowedError' || error.name === 'SecurityError';
+      const msg = isNotAllowed
+        ? '카메라 접근이 거부되었거나 화면 오버레이(필터, 팝업 등)가 실행 중입니다.\n설정에서 오버레이를 끄고 권한을 허용한 뒤 화면의 [다시 연결] 버튼을 눌러주세요.'
+        : '카메라를 초기화할 수 없습니다. 권한을 확인해주세요.';
+      
+      const container = document.querySelector('.camera-aspect-box');
+      if (container) {
+        let retryBtn = document.getElementById('btn-camera-retry');
+        if (!retryBtn) {
+          retryBtn = document.createElement('button');
+          retryBtn.id = 'btn-camera-retry';
+          retryBtn.className = 'btn-primary';
+          retryBtn.innerText = '📸 카메라 다시 연결하기';
+          retryBtn.style.position = 'absolute';
+          retryBtn.style.zIndex = '100';
+          retryBtn.onclick = () => {
+            retryBtn.remove();
+            initCamera();
+          };
+          container.appendChild(retryBtn);
+        }
       }
-
-      alert(message);
+      alert(msg);
     }
   }
 
