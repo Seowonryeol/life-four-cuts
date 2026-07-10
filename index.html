@@ -41,11 +41,11 @@
 
       <div class="start-content">
         <div class="start-icon float-animation" aria-hidden="true">📷</div>
-        <h1 class="gradient-text">인생네컷</h1>
+        <h1 class="gradient-text">ជីវិតបួនសន្លឹក<br><span style="font-size: 2em; line-height: 1;">Life Four Cuts</span></h1>
         <p class="subtitle">PHOTO BOOTH</p>
-        <p class="instruction">버튼을 눌러 촬영을 시작하세요</p>
+        <p class="instruction">ចុចប៊ូតុងដើម្បីចាប់ផ្តើមថត<br><span style="font-size: 2em;">Press the button to start shooting</span></p>
         <button id="btn-start" class="btn-primary" aria-label="촬영 시작하기">
-          📸 시작하기
+          📸 ចាប់ផ្តើម<br><span style="font-size: 2em;">Start</span>
         </button>
       </div>
     </section>
@@ -62,7 +62,7 @@
           <span class="step-dot" aria-label="편집"></span>
           <span class="step-dot" aria-label="완료"></span>
         </nav>
-        <h2>세로 4컷 인생네컷</h2>
+        <h2>ជីវិតបួនសន្លឹកបញ្ឈរ<br><span style="font-size: 2em;">Vertical 4 Cuts</span></h2>
       </header>
 
       <!-- PC/Tablet: two-column layout -->
@@ -74,17 +74,17 @@
 
         <!-- Right: info + button -->
         <div class="frame-select-info">
-          <div class="frame-info-badge">📸 세로 4컷</div>
-          <p class="frame-info-desc">4장의 사진을 촬영한 뒤<br>색상 및 템플릿으로 꾸밀 수 있어요.</p>
+          <div class="frame-info-badge">📸 បួនសន្លឹកបញ្ឈរ / Vertical 4 Cuts</div>
+          <p class="frame-info-desc">បន្ទាប់ពីថតរូប ៤ សន្លឹករួច<br>អ្នកអាចតុបតែងវាជាមួយពណ៌ និងគំរូ។<br><span style="font-size: 2em; opacity: 0.8;">After taking 4 photos, you can decorate them with colors and templates.</span></p>
           <ul class="frame-info-list">
-            <li>✅ 셀카 카메라 자동 설정</li>
-            <li>✅ 색상 &amp; 템플릿 선택</li>
-            <li>✅ 필터 &amp; 스티커 꾸미기</li>
-            <li>✅ 저장 / QR / 이메일 전송</li>
+            <li>✅ ការកំណត់កាមេរ៉ាស្វ័យប្រវត្តិ / Auto Selfie Camera</li>
+            <li>✅ ជ្រើសរើសពណ៌ និងគំរូ / Select Color & Template</li>
+            <li>✅ តុបតែងដោយតម្រង និងស្ទីកឃ័រ / Decorate with Filters & Stickers</li>
+            <li>✅ រក្សាទុក / QR / ផ្ញើអ៊ីមែល / Save / QR / Send Email</li>
           </ul>
           <div class="button-group" style="margin-top: 24px;">
-            <button id="btn-frame-back" class="btn-secondary" aria-label="시작 화면으로 이동">← 뒤로</button>
-            <button id="btn-frame-next" class="btn-primary" aria-label="다음 단계로 이동">촬영 시작 →</button>
+            <button id="btn-frame-back" class="btn-secondary" aria-label="시작 화면으로 이동">← ត្រឡប់ក្រោយ<br><span style="font-size: 2em;">Back</span></button>
+            <button id="btn-frame-next" class="btn-primary" aria-label="다음 단계로 이동">ចាប់ផ្តើមថត →<br><span style="font-size: 2em;">Start Shooting</span></button>
           </div>
         </div>
       </div>
@@ -99,7 +99,7 @@
         <div class="camera-container" aria-live="polite">
           <div class="camera-aspect-box">
             <video id="camera-preview" autoplay playsinline muted aria-label="카메라 미리보기"></video>
-            <div id="pose-instruction" class="pose-instruction-overlay hidden">포즈를 취해주세요! 📸</div>
+            <div id="pose-instruction" class="pose-instruction-overlay hidden">សូមធ្វើកាយវិការ! 📸<br><span style="font-size: 2em;">Please strike a pose!</span></div>
             <div id="countdown-number" class="countdown-overlay" aria-live="polite"></div>
             <div id="camera-flash" class="flash-overlay" aria-hidden="true"></div>
           </div>
@@ -112,16 +112,16 @@
             <span class="shot-total"> / 4</span>
           </div>
           <div class="camera-select-container glass-panel">
-            <label for="camera-select">📷 카메라</label>
+            <label for="camera-select">📷 កាមេរ៉ា / Camera</label>
             <select id="camera-select" class="glass-select" aria-label="카메라 선택">
-              <option value="">카메라 불러오는 중...</option>
+              <option value="">កំពុងផ្ទុកកាមេរ៉ា... / Loading camera...</option>
             </select>
           </div>
           <div class="shoot-preview-frame-container">
             <canvas id="shoot-preview-canvas" aria-label="실시간 촬영 프레임 미리보기"></canvas>
           </div>
-          <button id="btn-retake" class="btn-secondary" aria-label="처음부터 다시 촬영">🔄 다시 찍기</button>
-          <button id="btn-shoot-back" class="btn-secondary" aria-label="스타일 선택 화면으로 이동">← 뒤로</button>
+          <button id="btn-retake" class="btn-secondary" aria-label="처음부터 다시 촬영">🔄 ថតម្ដងទៀត<br><span style="font-size: 2em;">Retake</span></button>
+          <button id="btn-shoot-back" class="btn-secondary" aria-label="스타일 선택 화면으로 이동">← ត្រឡប់ក្រោយ<br><span style="font-size: 2em;">Back</span></button>
         </aside>
       </div>
     </section>
@@ -138,64 +138,94 @@
           <span class="step-dot active" aria-label="현재 단계: 편집"></span>
           <span class="step-dot"></span>
         </nav>
-        <h2>사진을 꾸며보세요</h2>
+        <h2>តុបតែងរូបថតរបស់អ្នក<br><span style="font-size: 2em;">Decorate your photos</span></h2>
       </header>
 
       <!-- PC/Tablet: side-by-side -->
       <div class="edit-body">
         <!-- Left: canvas preview -->
         <div class="edit-preview-container">
-          <canvas id="edit-canvas" width="600" height="1800" aria-label="편집 미리보기 캔버스"></canvas>
+          <canvas id="edit-canvas" width="1200" height="3600" aria-label="편집 미리보기 캔버스"></canvas>
         </div>
 
         <!-- Right: controls panel -->
         <div class="edit-controls">
-          <div class="tab-bar" role="tablist" aria-label="편집 도구 탭">
-            <button id="tab-frames" class="tab-btn active" data-tab="frames" role="tab" aria-selected="true" aria-controls="frame-config-list">🖼️ 프레임</button>
-            <button id="tab-filters" class="tab-btn" data-tab="filters" role="tab" aria-selected="false" aria-controls="filter-list">🎨 필터</button>
-            <button id="tab-stickers" class="tab-btn" data-tab="stickers" role="tab" aria-selected="false" aria-controls="sticker-list">✨ 스티커</button>
+          <!-- Frame Config Panel -->
+          <div class="option-group">
+            <label>ស៊ុម / Frame</label>
+            <div id="frame-config-list" class="edit-section">
+              <div class="option-group">
+                <label>ពណ៌ស៊ុម / Frame Color</label>
+                <div class="color-options">
+                  <button id="color-black"      class="color-swatch active"   data-color="#000000" style="background-color:#000000;" aria-label="검정색"   aria-pressed="true"></button>
+                  <button id="color-white"      class="color-swatch"          data-color="#ffffff" style="background-color:#ffffff;" aria-label="흰색"     aria-pressed="false"></button>
+                  <button id="color-pink"       class="color-swatch"          data-color="#ffb6c1" style="background-color:#ffb6c1;" aria-label="분홍색"   aria-pressed="false"></button>
+                  <button id="color-ivory"      class="color-swatch"          data-color="#fdf6e3" style="background-color:#fdf6e3;" aria-label="아이보리" aria-pressed="false"></button>
+                  <button id="color-mint"       class="color-swatch"          data-color="#aff0d8" style="background-color:#aff0d8;" aria-label="민트"     aria-pressed="false"></button>
+                  <button id="color-lavender"   class="color-swatch"          data-color="#d8b4fe" style="background-color:#d8b4fe;" aria-label="라벤더"   aria-pressed="false"></button>
+                  <button id="color-gray"       class="color-swatch"          data-color="#888899" style="background-color:#888899;" aria-label="회색"     aria-pressed="false"></button>
+                  <button id="color-neon-blue"  class="color-swatch"          data-color="#00d4ff" style="background-color:#00d4ff;" aria-label="네온 블루" aria-pressed="false"></button>
+                </div>
+              </div>
+              <div class="option-group">
+                <label>ផ្ទៃខាងក្រោយ & ស្ទីល / Background & Style</label>
+                <div id="bg-options-list" class="style-options">
+                  <!-- Dynamically populated by app.js -->
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Frame Config Panel -->
-          <div id="frame-config-list" class="tab-content active" role="tabpanel" aria-labelledby="tab-frames">
-            <div class="option-group">
-              <label>프레임 색상</label>
-              <div class="color-options">
-                <button id="color-black"      class="color-swatch active"   data-color="#000000" style="background-color:#000000;" aria-label="검정색"   aria-pressed="true"></button>
-                <button id="color-white"      class="color-swatch"          data-color="#ffffff" style="background-color:#ffffff;" aria-label="흰색"     aria-pressed="false"></button>
-                <button id="color-pink"       class="color-swatch"          data-color="#ffb6c1" style="background-color:#ffb6c1;" aria-label="분홍색"   aria-pressed="false"></button>
-                <button id="color-ivory"      class="color-swatch"          data-color="#fdf6e3" style="background-color:#fdf6e3;" aria-label="아이보리" aria-pressed="false"></button>
-                <button id="color-mint"       class="color-swatch"          data-color="#aff0d8" style="background-color:#aff0d8;" aria-label="민트"     aria-pressed="false"></button>
-                <button id="color-lavender"   class="color-swatch"          data-color="#d8b4fe" style="background-color:#d8b4fe;" aria-label="라벤더"   aria-pressed="false"></button>
-                <button id="color-gray"       class="color-swatch"          data-color="#888899" style="background-color:#888899;" aria-label="회색"     aria-pressed="false"></button>
-                <button id="color-neon-blue"  class="color-swatch"          data-color="#00d4ff" style="background-color:#00d4ff;" aria-label="네온 블루" aria-pressed="false"></button>
+          <hr class="section-divider">
+
+          <hr class="section-divider">
+
+          <!-- Image Adjustments Panel -->
+          <div class="option-group">
+            <label>ការកែតម្រូវរូបភាព / Adjustments</label>
+            <div class="edit-section">
+              <div class="slider-group">
+                <label for="adj-brightness">ពន្លឺ / Brightness</label>
+                <input type="range" id="adj-brightness" min="0" max="100" value="50">
               </div>
-            </div>
-            <div class="option-group">
-              <label>배경 / 스타일</label>
-              <div id="bg-options-list" class="style-options">
-                <!-- Dynamically populated by app.js -->
+              <div class="slider-group">
+                <label for="adj-saturation">ពណ៌ / Saturation</label>
+                <input type="range" id="adj-saturation" min="0" max="100" value="50">
+              </div>
+              <div class="slider-group">
+                <label for="adj-contrast">កម្រិតពន្លឺ / Contrast</label>
+                <input type="range" id="adj-contrast" min="0" max="100" value="50">
               </div>
             </div>
           </div>
+
+          <hr class="section-divider">
 
           <!-- Filter Panel -->
-          <div id="filter-list" class="tab-content" role="tabpanel" aria-labelledby="tab-filters">
-            <!-- Populated dynamically by app.js -->
+          <div class="option-group">
+            <label>តម្រង / Filter</label>
+            <div id="filter-list" class="edit-section">
+              <!-- Populated dynamically by app.js -->
+            </div>
           </div>
 
+          <hr class="section-divider">
+
           <!-- Sticker Panel -->
-          <div id="sticker-list" class="tab-content" role="tabpanel" aria-labelledby="tab-stickers">
-            <!-- Populated dynamically by app.js -->
+          <div class="option-group">
+            <label>ស្ទីកឃ័រ / Sticker</label>
+            <div id="sticker-list" class="edit-section">
+              <!-- Populated dynamically by app.js -->
+            </div>
           </div>
 
           <div class="sticker-hint" id="sticker-hint">
-            💡 스티커를 더블클릭하면 캔버스 중앙에 바로 추가됩니다. 캔버스에서 드래그하여 이동하세요.
+            💡 ចុចពីរដងលើស្ទីកឃ័រដើម្បីបន្ថែមវា។ អូសដើម្បីផ្លាស់ទី។<br>Double-click a sticker to add it. Drag to move.
           </div>
 
           <div class="button-group">
-            <button id="btn-edit-back" class="btn-secondary" aria-label="촬영 화면으로 이동">← 뒤로</button>
-            <button id="btn-edit-done" class="btn-primary" aria-label="편집 완료">완료 →</button>
+            <button id="btn-edit-back" class="btn-secondary" aria-label="촬영 화면으로 이동">← ត្រឡប់ក្រោយ<br><span style="font-size: 2em;">Back</span></button>
+            <button id="btn-edit-done" class="btn-primary" aria-label="편집 완료">រួចរាល់ →<br><span style="font-size: 2em;">Done</span></button>
           </div>
         </div>
       </div>
@@ -213,7 +243,7 @@
           <span class="step-dot done"></span>
           <span class="step-dot active" aria-label="현재 단계: 완성"></span>
         </nav>
-        <h2>완성! 🎉</h2>
+        <h2>រួចរាល់! 🎉<br><span style="font-size: 2em;">Complete!</span></h2>
       </header>
 
       <!-- PC/Tablet: side-by-side result layout -->
@@ -225,34 +255,34 @@
 
         <!-- Right: actions -->
         <div class="result-actions-panel">
-          <p class="result-cta">사진이 완성됐어요!<br>저장하거나 공유해 보세요.</p>
+          <p class="result-cta">រូបថតរួចរាល់ហើយ!<br>រក្សាទុក ឬចែករំលែកវា។<br><span style="font-size: 2em; opacity: 0.8;">Photos are ready! Save or share them.</span></p>
 
           <div class="action-buttons">
-            <button id="btn-download" class="btn-primary" aria-label="사진 저장하기">📥 저장하기</button>
-            <button id="btn-qr"       class="btn-secondary" aria-label="QR 코드 생성">📱 QR 코드</button>
-            <button id="btn-email"    class="btn-secondary" aria-label="이메일로 전송">✉️ 이메일</button>
+            <button id="btn-download" class="btn-primary" aria-label="사진 저장하기">📥 រក្សាទុក<br><span style="font-size: 2em;">Save</span></button>
+            <button id="btn-qr"       class="btn-secondary" aria-label="QR 코드 생성">📱 កូដ QR<br><span style="font-size: 2em;">QR Code</span></button>
+            <button id="btn-email"    class="btn-secondary" aria-label="이메일로 전송">✉️ អ៊ីមែល<br><span style="font-size: 2em;">Email</span></button>
           </div>
 
           <!-- QR Code Panel -->
           <div id="qr-container" class="glass-panel hidden" aria-label="QR 코드 패널">
-            <p>스마트폰으로 QR 코드를 스캔하세요</p>
+            <p>ស្កេនកូដ QR ជាមួយស្មាតហ្វូនរបស់អ្នក<br><span style="font-size: 2em;">Scan the QR code with your smartphone</span></p>
             <div id="qr-code" aria-label="QR 코드"></div>
             <button id="btn-qr-close" class="btn-close" aria-label="QR 코드 닫기">✕</button>
           </div>
 
           <!-- Email Panel -->
           <div id="email-container" class="glass-panel hidden" aria-label="이메일 전송 패널">
-            <p>이메일 주소를 입력하세요</p>
+            <p>បញ្ចូលអាសយដ្ឋានអ៊ីមែលរបស់អ្នក<br><span style="font-size: 2em;">Enter your email address</span></p>
             <div class="email-form">
               <input id="email-input" type="email" placeholder="example@email.com" aria-label="이메일 주소 입력" autocomplete="email">
-              <button id="btn-email-send" class="btn-primary" aria-label="이메일 전송">전송</button>
+              <button id="btn-email-send" class="btn-primary" aria-label="이메일 전송">ផ្ញើ<br><span style="font-size: 2em;">Send</span></button>
             </div>
             <button id="btn-email-close" class="btn-close" aria-label="이메일 패널 닫기">✕</button>
           </div>
 
           <div class="button-group" style="margin-top: 16px;">
-            <button id="btn-result-back" class="btn-secondary" aria-label="편집 화면으로 이동">← 편집하기</button>
-            <button id="btn-restart"     class="btn-secondary" aria-label="처음으로 돌아가기">🏠 처음으로</button>
+            <button id="btn-result-back" class="btn-secondary" aria-label="편집 화면으로 이동">← កែសម្រួល<br><span style="font-size: 2em;">Edit</span></button>
+            <button id="btn-restart"     class="btn-secondary" aria-label="처음으로 돌아가기">🏠 ទំព័រដើម<br><span style="font-size: 2em;">Home</span></button>
           </div>
         </div>
       </div>

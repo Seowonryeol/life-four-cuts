@@ -101,7 +101,8 @@ app.post('/api/upload', async (req, res) => {
     fs.writeFileSync(filepath, buffer);
 
     // 호스팅되는 URL 반환
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const clientOrigin = req.headers['origin'] || req.headers['x-forwarded-host'] ? `${req.headers['x-forwarded-proto'] || req.protocol}://${req.headers['x-forwarded-host']}` : `${req.protocol}://${req.get('host')}`;
+    const baseUrl = req.body.clientBaseUrl || clientOrigin;
     const photoUrl = `${baseUrl}/photo/${id}`;
 
     res.json({ success: true, id, url: photoUrl, imageUrl: `${baseUrl}/uploads/${filename}` });
@@ -131,9 +132,9 @@ app.post('/api/email', async (req, res) => {
       text: '인생네컷 포토부스에서 촬영한 사진이 도착했습니다. 첨부파일을 확인해주세요.',
       html: `
         <div style="font-family: sans-serif; text-align: center; padding: 20px;">
-          <h2>인생네컷 포토부스</h2>
-          <p>촬영하신 사진이 도착했습니다!</p>
-          <p>아래 첨부파일을 다운로드하여 보관하세요.</p>
+          <h2>ជីវិតបួនសន្លឹក / Life Four Cuts</h2>
+          <p>រូបថតរបស់អ្នករួចរាល់ហើយ! / Your photos are ready!</p>
+          <p>សូមទាញយកឯកសារភ្ជាប់ខាងក្រោម។ / Please download the attached file.</p>
         </div>
       `,
       attachments: []
@@ -193,7 +194,7 @@ app.get('/photo/:id', (req, res) => {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>인생네컷 사진 다운로드</title>
+      <title>ជីវិតបួនសន្លឹក - ទាញយករូបថត / Download Photo</title>
       <style>
         body { margin: 0; padding: 20px; background-color: #08081a; color: white; font-family: sans-serif; text-align: center; }
         .container { max-width: 500px; margin: 0 auto; }
@@ -204,11 +205,11 @@ app.get('/photo/:id', (req, res) => {
     </head>
     <body>
       <div class="container">
-        <h2>인생네컷 완료!</h2>
-        <p>이미지를 길게 눌러 저장하거나 아래 버튼을 클릭하세요.</p>
-        <img src="${imageUrl}" alt="인생네컷 사진">
+        <h2>រួចរាល់! / Complete!</h2>
+        <p>ចុចឱ្យយូរលើរូបភាពដើម្បីរក្សាទុក ឬចុចប៊ូតុងខាងក្រោម។<br>Long press the image to save or click the button below.</p>
+        <img src="${imageUrl}" alt="Life Four Cuts Photo">
         <br>
-        <a href="${imageUrl}" download="life4cuts.png" class="btn">사진 다운로드</a>
+        <a href="${imageUrl}" download="life4cuts.jpg" class="btn">ទាញយករូបថត / Download Photo</a>
       </div>
     </body>
     </html>

@@ -24,12 +24,12 @@
     // 세로 4컷 전용 레이아웃 설정
     layouts: {
       strip: {
-        canvasWidth:  600,
-        canvasHeight: 1800,
-        photoWidth:   540,
-        photoHeight:  380,
-        padding: 30,
-        gap:     15
+        canvasWidth:  1200,
+        canvasHeight: 3600,
+        photoWidth:   1080,
+        photoHeight:  760,
+        padding: 60,
+        gap:     30
       }
     },
     captureQuality: 0.95,
@@ -54,7 +54,9 @@
     photos:          [],   // 캡처된 이미지 Data URL 배열
     currentShot:      0,   // 현재 촬영 인덱스 (0-3)
     filter:       'none',  // 선택된 필터 이름
+    adjustments: { brightness: 50, saturation: 50, contrast: 50 }, // 이미지 조정
     stickers:        [],   // {id, emoji, x, y, size, rotation} 배열
+    loadedPhotos:    [],   // 캡처된 이미지의 HTMLImageElement 배열 (깜빡임 방지용 캐시)
     cameraStream:  null,
     countdownTimer: null,
     selectedSticker: null,
@@ -408,7 +410,7 @@
         oscillator.type = 'sine';
         oscillator.frequency.setValueAtTime(800, ctx.currentTime);
 
-        gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+        gainNode.gain.setValueAtTime(0.8, ctx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
 
         oscillator.connect(gainNode);
@@ -437,7 +439,7 @@
         filter.Q.setValueAtTime(0.7, ctx.currentTime);
 
         const gainNode = ctx.createGain();
-        gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
+        gainNode.gain.setValueAtTime(1.2, ctx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
 
         source.connect(filter);
@@ -561,16 +563,16 @@
    * 사용 가능한 이미지 필터 목록
    */
   const FILTERS = [
-    { name: 'none',    label: '원본',    filterStr: 'none' },
-    { name: 'bw',      label: '흑백',    filterStr: 'grayscale(100%)' },
-    { name: 'soft',    label: '부드러운', filterStr: 'brightness(115%) contrast(85%) saturate(80%)' },
-    { name: 'vivid',   label: '생동감',  filterStr: 'saturate(150%) contrast(115%) brightness(105%)' },
-    { name: 'vintage', label: '빈티지',  filterStr: 'sepia(55%) contrast(108%) brightness(92%)' },
-    { name: 'cool',    label: '쿨톤',    filterStr: 'hue-rotate(20deg) saturate(110%) brightness(105%)' },
-    { name: 'warm',    label: '웜톤',    filterStr: 'hue-rotate(-15deg) saturate(120%) brightness(108%)' },
-    { name: 'film',    label: '필름',    filterStr: 'contrast(95%) brightness(90%) saturate(110%) sepia(20%)' },
-    { name: 'fade',    label: '페이드',  filterStr: 'brightness(120%) contrast(85%) saturate(70%) opacity(90%)' },
-    { name: 'neon',    label: '네온',    filterStr: 'saturate(200%) contrast(130%) brightness(90%) hue-rotate(10deg)' }
+    { name: 'none',    label: 'ដើម<br>Original',    filterStr: 'none' },
+    { name: 'bw',      label: 'ស&ខ្មៅ<br>B&W',    filterStr: 'grayscale(100%)' },
+    { name: 'soft',    label: 'ទន់<br>Soft', filterStr: 'brightness(115%) contrast(85%) saturate(80%)' },
+    { name: 'vivid',   label: 'រស់រវើក<br>Vivid',  filterStr: 'saturate(150%) contrast(115%) brightness(105%)' },
+    { name: 'vintage', label: 'បុរាណ<br>Vintage',  filterStr: 'sepia(55%) contrast(108%) brightness(92%)' },
+    { name: 'cool',    label: 'ត្រជាក់<br>Cool',    filterStr: 'hue-rotate(20deg) saturate(110%) brightness(105%)' },
+    { name: 'warm',    label: 'កក់ក្តៅ<br>Warm',    filterStr: 'hue-rotate(-15deg) saturate(120%) brightness(108%)' },
+    { name: 'film',    label: 'ហ្វីល<br>Film',    filterStr: 'contrast(95%) brightness(90%) saturate(110%) sepia(20%)' },
+    { name: 'fade',    label: 'រសាត់<br>Fade',  filterStr: 'brightness(120%) contrast(85%) saturate(70%) opacity(90%)' },
+    { name: 'neon',    label: 'ណេអុង<br>Neon',    filterStr: 'saturate(200%) contrast(130%) brightness(90%) hue-rotate(10deg)' }
   ];
 
   /**
@@ -595,7 +597,8 @@
       }
 
       // 배경명 라벨
-      const label = createElement('span', 'filter-name', filter.label);
+      const label = createElement('span', 'filter-name');
+      label.innerHTML = filter.label;
 
       if (sourceURL) {
         // 축소 썸네일 생성
@@ -797,7 +800,7 @@
       emoji: emoji,
       x: normX,
       y: normY,
-      size: 0.08,        // 캔버스 대비 상대 크기
+      size: 0.12,        // 캔버스 대비 상대 크기 (목록에서 보이는 사이즈와 유사하게 축소)
       rotation: 0
     });
     renderEditCanvas();
@@ -870,7 +873,7 @@
         ctx.setLineDash([]);
 
         // 삭제 버튼 (우상단)
-        const btnSize = 20;
+        const btnSize = 80;
         const btnX = halfSize - btnSize / 2;
         const btnY = -halfSize - btnSize / 2;
 
@@ -885,11 +888,18 @@
         ctx.textBaseline = 'middle';
         ctx.fillText('✕', btnX + btnSize / 2, btnY + btnSize / 2);
 
-        // 크기 조절 핸들 (우하단)
+        // 크기 조절 핸들 3개 (우하단, 좌하단, 좌상단)
         ctx.fillStyle = 'rgba(100, 180, 255, 0.9)';
-        ctx.beginPath();
-        ctx.arc(halfSize, halfSize, 8, 0, Math.PI * 2);
-        ctx.fill();
+        const handlePositions = [
+          { x: halfSize, y: halfSize },   // 우하단 (BR)
+          { x: -halfSize, y: halfSize },  // 좌하단 (BL)
+          { x: -halfSize, y: -halfSize }  // 좌상단 (TL)
+        ];
+        handlePositions.forEach(pos => {
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, 32, 0, Math.PI * 2);
+          ctx.fill();
+        });
       }
 
       ctx.restore();
@@ -936,7 +946,7 @@
       const canvasH = canvas.height;
       const fontSize = s.size * canvasW;
       const halfSize = fontSize / 2 + 4;   // px
-      const btnR     = 12;                  // px — 원 반지름
+      const btnR     = 40;                  // px — 원 반지름
 
       // 캔버스 px 좌표 (translate 기준)
       const btnCxPx = s.x * canvasW + halfSize;   // 우상단
@@ -952,7 +962,7 @@
       return Math.sqrt(dx * dx + dy * dy) < hitR;
     }
 
-    // 크기 조절 핸들 히트 테스트  (우하단 원)
+    // 크기 조절 핸들 히트 테스트 (우하단, 좌하단, 좌상단)
     function isResizeHandleHit(stickerIndex, normX, normY) {
       const s = state.stickers[stickerIndex];
       if (!s) return false;
@@ -960,21 +970,26 @@
       const canvasW = canvas.width;
       const canvasH = canvas.height;
       const fontSize = s.size * canvasW;
-      const halfSize = fontSize / 2 + 4;   // px
-      const handleR  = 8;                   // px — 원 반지름 (renderStickersOnCanvas 와 동일)
+      const halfSize = fontSize / 2 + 4;
+      const handleR  = 32;
+      const hitR = (handleR + 12) / canvasW;
 
-      // 캔버스 px 좌표 (translate 기준)
-      const hxPx = s.x * canvasW + halfSize;  // 우하단
-      const hyPx = s.y * canvasH + halfSize;
+      const handlePositions = [
+        { x: halfSize, y: halfSize },   // 우하단
+        { x: -halfSize, y: halfSize },  // 좌하단
+        { x: -halfSize, y: -halfSize }  // 좌상단
+      ];
 
-      // norm 좌표로 변환
-      const hxN  = hxPx / canvasW;
-      const hyN  = hyPx / canvasH;
-      const hitR = (handleR + 12) / canvasW;  // 여유 범위 추가
-
-      const dx = normX - hxN;
-      const dy = normY - hyN;
-      return Math.sqrt(dx * dx + dy * dy) < hitR;
+      for (let pos of handlePositions) {
+        const hxPx = s.x * canvasW + pos.x;
+        const hyPx = s.y * canvasH + pos.y;
+        const hxN  = hxPx / canvasW;
+        const hyN  = hyPx / canvasH;
+        const dx = normX - hxN;
+        const dy = normY - hyN;
+        if (Math.sqrt(dx * dx + dy * dy) < hitR) return true;
+      }
+      return false;
     }
 
     let isResizing = false;
@@ -986,27 +1001,35 @@
       e.preventDefault();
       const { normX, normY } = getCanvasCoords(e);
 
-      // 1. 선택된 스티커의 삭제 버튼 확인
+      // 3. 기존 스티커 선택 확인 (드래그 우선 여부 확인)
+      const hitIndex = findStickerAt(normX, normY);
+
+      // 1. 선택된 스티커의 삭제 버튼 확인 (중심과 너무 가까우면 무시하여 드래그 우선)
       if (state.selectedSticker !== null && isDeleteButtonHit(state.selectedSticker, normX, normY)) {
-        removeSticker(state.selectedSticker);
-        return;
+        const s = state.stickers[state.selectedSticker];
+        const distToCenter = Math.sqrt(Math.pow(normX - s.x, 2) + Math.pow(normY - s.y, 2));
+        const minDragDist = (s.size * 0.3); // 중심에 너무 가까우면 삭제 무시
+        
+        if (distToCenter > minDragDist || hitIndex !== state.selectedSticker) {
+          removeSticker(state.selectedSticker);
+          return;
+        }
       }
 
       // 2. 선택된 스티커의 크기 조절 핸들 확인
       if (state.selectedSticker !== null && isResizeHandleHit(state.selectedSticker, normX, normY)) {
         isResizing = true;
         const s = state.stickers[state.selectedSticker];
-        // 스티커 중심(s.x, s.y)에서 클릭 지점까지의 거리를 기준으로 리사이즈
-        resizeStartDist = Math.sqrt(
-          Math.pow(normX - s.x, 2) + Math.pow(normY - s.y, 2)
-        );
+        // 픽셀 단위로 스티커 중심에서 터치 포인트까지의 거리 계산
+        const rect = canvas.getBoundingClientRect();
+        const pixelDx = (normX - s.x) * rect.width;
+        const pixelDy = (normY - s.y) * rect.height;
+        resizeStartDist = Math.sqrt(pixelDx * pixelDx + pixelDy * pixelDy);
         if (resizeStartDist < 0.001) resizeStartDist = 0.001; // 0 나누기 방지
         resizeStartSize = s.size;
         return;
       }
 
-      // 3. 기존 스티커 선택 확인
-      const hitIndex = findStickerAt(normX, normY);
       if (hitIndex >= 0) {
         state.selectedSticker = hitIndex;
         state.isDragging = true;
@@ -1043,13 +1066,15 @@
       const { normX, normY } = getCanvasCoords(e);
 
       if (isResizing && state.selectedSticker !== null) {
-        // 크기 조절: 스티커 중심(s.x, s.y)에서 현재 포인터까지의 거리 계산
+        // 크기 조절: 스티커 중심(s.x, s.y)에서 현재 포인터까지의 픽셀 거리 계산
         const s = state.stickers[state.selectedSticker];
-        const currentDist = Math.sqrt(
-          Math.pow(normX - s.x, 2) + Math.pow(normY - s.y, 2)
-        );
+        const rect = canvas.getBoundingClientRect();
+        const pixelDx = (normX - s.x) * rect.width;
+        const pixelDy = (normY - s.y) * rect.height;
+        const currentDist = Math.sqrt(pixelDx * pixelDx + pixelDy * pixelDy);
+        
         const scale = currentDist / resizeStartDist;
-        s.size = clamp(resizeStartSize * scale, 0.03, 0.30);
+        s.size = clamp(resizeStartSize * scale, 0.03, 0.80);
         renderEditCanvas();
         return;
       }
@@ -1160,34 +1185,50 @@
 
     // 각 사진 그리기
     for (let i = 0; i < totalShots; i++) {
-      if (i >= photos.length) break;
+      if (i >= state.loadedPhotos.length) break;
 
-      const img = await loadImage(photos[i]);
+      const img = state.loadedPhotos[i];
+      if (!img.complete) {
+        await new Promise(res => { img.onload = res; });
+      }
       const pos = positions[i];
 
       ctx.save();
 
-      // 필터 적용
+      // 필터 및 조정 적용
+      let filterStr = '';
       if (filterName !== 'none') {
         const filterObj = FILTERS.find(f => f.name === filterName);
-        if (filterObj) ctx.filter = filterObj.filterStr;
+        if (filterObj) filterStr += filterObj.filterStr + ' ';
       }
+      const b = (state.adjustments.brightness / 50) * 100;
+      const s = (state.adjustments.saturation / 50) * 100;
+      const c = (state.adjustments.contrast / 50) * 100;
+      filterStr += `brightness(${b}%) saturate(${s}%) contrast(${c}%)`;
+      ctx.filter = filterStr.trim();
 
       // 사진을 슬롯에 맞게 그리기 (비율 유지하며 채우기)
       drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
       ctx.filter = 'none';
 
+      // 'Solid' 또는 'Template 2' 인 경우 5px 테두리 추가
+      if (frameConfig.bg === 'none' || frameConfig.bg === 'vert4_bg2') {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 5;
+        ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+      }
+
       ctx.restore();
     }
 
-    // 스티커 그리기
-    if (stickers && stickers.length > 0) {
-      renderStickersOnCanvas(ctx, stickers, canvas.width, canvas.height, false);
-    }
-
-    // 데코 이미지 그리기 (최상단)
+    // 데코 이미지 그리기 (사진 위, 스티커 아래)
     if (frameConfig.deco && frameConfig.deco !== 'none' && state.decoImages && state.decoImages[frameConfig.deco]) {
       ctx.drawImage(state.decoImages[frameConfig.deco], 0, 0, canvas.width, canvas.height);
+    }
+
+    // 스티커 그리기 (최상단)
+    if (stickers && stickers.length > 0) {
+      renderStickersOnCanvas(ctx, stickers, canvas.width, canvas.height, false);
     }
 
     // 날짜 워터마크
@@ -1335,7 +1376,7 @@
     const textColor = brightness > 128 ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
 
     ctx.fillStyle = textColor;
-    ctx.font = '16px "Pretendard", "Apple SD Gothic Neo", sans-serif';
+    ctx.font = 'bold 40px "Outfit", "Pretendard", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText(date, w / 2, h - 15);
@@ -1377,38 +1418,48 @@
     // 각 사진 그리기
     const totalShots = getTotalShots();
     for (let i = 0; i < totalShots; i++) {
-      if (i >= state.photos.length) break;
+      if (i >= state.loadedPhotos.length) break;
 
-      const img = await loadImage(state.photos[i]);
+      const img = state.loadedPhotos[i];
+      if (!img.complete) {
+        await new Promise(res => { img.onload = res; });
+      }
       const pos = positions[i];
 
       ctx.save();
 
-      // 필터 적용
+      // 필터 및 조정 적용
+      let filterStr = '';
       if (state.filter !== 'none') {
         const filterObj = FILTERS.find(f => f.name === state.filter);
-        if (filterObj) ctx.filter = filterObj.filterStr;
+        if (filterObj) filterStr += filterObj.filterStr + ' ';
       }
+      const b = (state.adjustments.brightness / 50) * 100;
+      const s = (state.adjustments.saturation / 50) * 100;
+      const c = (state.adjustments.contrast / 50) * 100;
+      filterStr += `brightness(${b}%) saturate(${s}%) contrast(${c}%)`;
+      ctx.filter = filterStr.trim();
 
       drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
       ctx.filter = 'none'; // 필터 초기화
 
-      if (state.frame.bg === 'none') {
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
+      // 'Solid' 또는 'Template 2' 인 경우 5px 테두리 추가
+      if (state.frame.bg === 'none' || state.frame.bg === 'vert4_bg2') {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 5;
         ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
       }
 
       ctx.restore();
     }
 
-    // 스티커 (선택 UI 포함)
-    renderStickersOnCanvas(ctx, state.stickers, canvas.width, canvas.height, true);
-
-    // 데코 이미지 그리기 (최상단)
+    // 데코 이미지 그리기 (사진 위, 스티커 아래)
     if (state.frame.deco !== 'none' && state.decoImages && state.decoImages[state.frame.deco]) {
       ctx.drawImage(state.decoImages[state.frame.deco], 0, 0, canvas.width, canvas.height);
     }
+
+    // 스티커 (선택 UI 포함, 최상단)
+    renderStickersOnCanvas(ctx, state.stickers, canvas.width, canvas.height, true);
 
     // 날짜 워터마크
     drawDateWatermark(ctx, canvas.width, canvas.height, state.frame.color);
@@ -1448,16 +1499,26 @@
     positions.forEach((pos, index) => {
       ctx.save();
 
-      // 사진 칸 플레이스홀더 — 항상 흰색
-      ctx.fillStyle = '#ffffff';
+      // 사진 칸 플레이스홀더
+      ctx.fillStyle = '#e8e8ea';
       ctx.fillRect(pos.x, pos.y, pos.width, pos.height);
 
-      // 번호 텍스트
-      ctx.fillStyle = 'rgba(0,0,0,0.18)';
-      ctx.font = 'bold 48px "Pretendard", sans-serif';
+      // 아이콘 및 텍스트
+      ctx.fillStyle = '#a0a0ab';
+      ctx.font = '72px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(String(index + 1), pos.x + pos.width / 2, pos.y + pos.height / 2);
+      ctx.fillText('📷', pos.x + pos.width / 2, pos.y + pos.height / 2 - 40);
+      
+      ctx.font = 'bold 36px "Pretendard", sans-serif';
+      ctx.fillText(`Sample Photo ${index + 1}`, pos.x + pos.width / 2, pos.y + pos.height / 2 + 50);
+
+      // 'Solid' 또는 'Template 2' 인 경우 5px 테두리 추가
+      if (state.frame.bg === 'none' || state.frame.bg === 'vert4_bg2') {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 5;
+        ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+      }
 
       ctx.restore();
     });
@@ -1527,7 +1588,7 @@
 
     canvas.toBlob(function (blob) {
       if (!blob) {
-        alert('이미지 생성에 실패했습니다.');
+        alert('បរាជ័យក្នុងការបង្កើតរូបភាព។ / Failed to create image.');
         return;
       }
 
@@ -1552,14 +1613,18 @@
     if (state.hostedPageUrl && state.uploadedImageUrl) return true;
     
     try {
-      const dataURL = canvas.toDataURL('image/png', 0.9);
+      // 업로드 용량을 줄이기 위해 JPEG 압축률을 0.50으로 설정 (Cloudinary 미적용 시 1MB 제한 우회)
+      const dataURL = canvas.toDataURL('image/jpeg', 0.50);
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Bypass-Tunnel-Reminder': 'true'
         },
-        body: JSON.stringify({ image: dataURL })
+        body: JSON.stringify({ 
+          image: dataURL,
+          clientBaseUrl: window.location.origin
+        })
       });
       const data = await response.json();
       
@@ -1597,7 +1662,7 @@
           qr.addData(state.hostedPageUrl);
           qr.make();
           qrContainer.innerHTML = qr.createImgTag(4, 8);
-          qrContainer.innerHTML += `<p style="font-size: 11px; margin-top: 10px; color: #888;">이 QR을 스캔하여 휴대폰에 사진을 저장하세요</p>`;
+          qrContainer.innerHTML += `<p style="font-size: 14px; margin-top: 10px; color: #888;">ស្កេន QR នេះដើម្បីរក្សាទុករូបថតទៅទូរស័ព្ទរបស់អ្នក<br>Scan this QR to save the photo to your phone</p>`;
         } else {
           createQRFallback(qrContainer);
         }
@@ -1643,13 +1708,13 @@
     // 이메일 형식 검증
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      alert('올바른 이메일 주소를 입력해 주세요.');
+      alert('សូមបញ្ចូលអាសយដ្ឋានអ៊ីមែលដែលត្រឹមត្រូវ។ / Please enter a valid email address.');
       return;
     }
 
     const btnSend = $('#btn-email-send');
-    const originalText = btnSend.textContent;
-    btnSend.textContent = '전송 중...';
+    const originalText = btnSend.innerHTML;
+    btnSend.innerHTML = 'កំពុងផ្ញើ...<br><span style="font-size: 0.7em;">Sending...</span>';
     btnSend.disabled = true;
 
     try {
@@ -1671,10 +1736,10 @@
       
       const data = await response.json();
       if (data.success) {
-        let msg = '이메일이 성공적으로 전송되었습니다.';
+        let msg = 'អ៊ីមែលត្រូវបានផ្ញើ! / Email sent successfully!';
         if (data.previewUrl) {
-          msg += '\n(테스트 모드: Ethereal 로그에서 미리보기를 확인하세요)';
-          console.log('Ethereal 이메일 미리보기 URL:', data.previewUrl);
+          msg += '\n(Test mode: Check Ethereal logs for preview)';
+          console.log('Ethereal Email Preview URL:', data.previewUrl);
         }
         alert(msg);
         
@@ -1682,13 +1747,13 @@
         const panel = $('#email-container');
         if (panel) panel.classList.add('hidden');
       } else {
-        throw new Error(data.error || '이메일 전송 실패');
+        throw new Error(data.error || 'បរាជ័យក្នុងការផ្ញើអ៊ីមែល។ / Failed to send email.');
       }
     } catch (error) {
       console.error(error);
-      alert(error.message || '오류가 발생했습니다.');
+      alert(error.message || 'មានកំហុសមួយបានកើតឡើង។ / An error occurred.');
     } finally {
-      btnSend.textContent = originalText;
+      btnSend.innerHTML = originalText;
       btnSend.disabled = false;
     }
   }
@@ -1707,6 +1772,7 @@
 
     // 상태 초기화
     state.photos = [];
+    state.loadedPhotos = [];
     state.currentShot = 0;
     state.filter = 'none';
     state.stickers = [];
@@ -1726,22 +1792,22 @@
     let options = [];
     if (state.frame.layout === 'strip') {
       options = [
-        { label: '단색', bg: 'none', deco: 'none' },
-        { label: '템플릿 1', bg: 'vert4_bg1', deco: 'vert4_deco1' },
-        { label: '템플릿 2', bg: 'vert4_bg2', deco: 'vert4_deco2' }
+        { label: 'ពណ៌រឹង<br>Solid', bg: 'none', deco: 'none' },
+        { label: 'គំរូទី១<br>Template 1', bg: 'vert4_bg1', deco: 'vert4_deco1' },
+        { label: 'គំរូទី២<br>Template 2', bg: 'vert4_bg2', deco: 'vert4_deco2' }
       ];
     } else {
       options = [
-        { label: '단색', bg: 'none', deco: 'none' },
-        { label: '배경 1', bg: 'bg1', deco: 'none' },
-        { label: '배경 2', bg: 'bg2', deco: 'none' },
-        { label: '배경 3', bg: 'bg3', deco: 'none' }
+        { label: 'ពណ៌រឹង<br>Solid', bg: 'none', deco: 'none' },
+        { label: 'ផ្ទៃខាងក្រោយ១<br>Background 1', bg: 'bg1', deco: 'none' },
+        { label: 'ផ្ទៃខាងក្រោយ២<br>Background 2', bg: 'bg2', deco: 'none' },
+        { label: 'ផ្ទៃខាងក្រោយ៣<br>Background 3', bg: 'bg3', deco: 'none' }
       ];
     }
 
     options.forEach(opt => {
       const btn = createElement('button', 'frame-style-option');
-      btn.textContent = opt.label;
+      btn.innerHTML = opt.label;
       btn.dataset.bg = opt.bg;
       btn.dataset.deco = opt.deco;
       if (state.frame.bg === opt.bg) {
@@ -1781,8 +1847,10 @@
    */
   async function initShootScreen() {
     // 상태 초기화
+    state.adjustments = { brightness: 50, saturation: 50, contrast: 50 };
     state.currentShot = 0;
     state.photos = [];
+    state.loadedPhotos = [];
 
     // 촬영 표시기 업데이트
     updateShotIndicator();
@@ -1908,15 +1976,21 @@
     positions.forEach((pos, index) => {
       ctx.save();
       
-      if (index < limitIndex && index < state.photos.length) {
+      if (index < limitIndex && index < state.loadedPhotos.length) {
         // 촬영된 사진 그리기
-        const img = new Image();
-        img.src = state.photos[index];
-        img.onload = () => {
+        const img = state.loadedPhotos[index];
+        if (img.complete) {
           ctx.save();
           drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
           ctx.restore();
-        };
+        } else {
+          // 로드 완료되지 않았을 경우를 위한 콜백 (일반적으로 Data URL이므로 즉시 완료됨)
+          img.onload = () => {
+            ctx.save();
+            drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
+            ctx.restore();
+          };
+        }
       } else {
         // 촬영 전 빈 슬롯 (플레이스홀더)
         ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
@@ -1946,6 +2020,12 @@
     
     // 데이터 즉시 등록 및 기존 사진들만 먼저 렌더링 (현재 촬영 컷은 빈 슬롯 상태 유지)
     state.photos.push(dataURL);
+    
+    // 깜빡임 방지용 이미지 캐싱
+    const imgObj = new Image();
+    imgObj.src = dataURL;
+    state.loadedPhotos.push(imgObj);
+
     renderShootPreviewCanvas(state.photos.length - 1);
 
     if (!cameraPreview || !canvas) {
@@ -2024,20 +2104,21 @@
     state.isDragging = false;
     hideStickerCursor();
 
-    // 기본 활성 탭 설정 (프레임 설정 탭을 기본 활성화)
-    $$('.tab-btn').forEach(b => b.classList.remove('active'));
-    const tabFrames = $('#tab-frames');
-    if (tabFrames) tabFrames.classList.add('active');
+    const stickerHint = $('#sticker-hint');
+    if (stickerHint) stickerHint.style.display = 'block';
 
-    const frameConfigList = $('#frame-config-list');
-    const filterList      = $('#filter-list');
-    const stickerList     = $('#sticker-list');
-    const stickerHint     = $('#sticker-hint');
-    if (frameConfigList) frameConfigList.classList.add('active');
-    if (filterList)      filterList.classList.remove('active');
-    if (stickerList)     stickerList.classList.remove('active');
-    if (stickerHint)     stickerHint.style.display = 'none';
-
+    // 조정 슬라이더 이벤트 설정
+    const adjSliders = ['brightness', 'saturation', 'contrast'];
+    adjSliders.forEach(type => {
+      const slider = $(`#adj-${type}`);
+      if (slider) {
+        slider.value = state.adjustments[type];
+        slider.addEventListener('input', (e) => {
+          state.adjustments[type] = parseInt(e.target.value, 10);
+          requestAnimationFrame(renderEditCanvas);
+        });
+      }
+    });
 
     // 프레임 색상 스와치 이벤트 설정
     const colorSwatches = $$('.color-swatch[data-color]');
@@ -2071,46 +2152,6 @@
 
     // 캔버스 터치 이벤트 설정
     setupCanvasTouchEvents();
-
-    // 탭 전환 설정
-    setupEditTabs();
-  }
-
-  /**
-   * 편집 화면의 탭 전환을 설정합니다. (프레임 / 필터 / 스티커)
-   */
-  function setupEditTabs() {
-    const tabBtns = $$('.tab-btn[data-tab]');
-    tabBtns.forEach(btn => {
-      const clone = btn.cloneNode(true);
-      btn.parentNode.replaceChild(clone, btn);
-
-      clone.addEventListener('click', () => {
-        // 탭 버튼 활성 상태
-        $$('.tab-btn').forEach(b => b.classList.remove('active'));
-        clone.classList.add('active');
-
-        const tab = clone.dataset.tab;
-
-        // 탭 전환 시 스티커 배치 모드 취소
-        if (tab !== 'stickers' && state.pendingStickerEmoji) {
-          state.pendingStickerEmoji = null;
-          hideStickerCursor();
-          $$('.sticker-item.active').forEach(el => el.classList.remove('active'));
-        }
-
-        // 탭 컨텐츠 전환
-        const frameConfigList = $('#frame-config-list');
-        const filterList = $('#filter-list');
-        const stickerList = $('#sticker-list');
-        const stickerHint = $('#sticker-hint');
-
-        if (frameConfigList) frameConfigList.classList.toggle('active', tab === 'frames');
-        if (filterList)      filterList.classList.toggle('active', tab === 'filters');
-        if (stickerList)     stickerList.classList.toggle('active', tab === 'stickers');
-        if (stickerHint)     stickerHint.style.display = (tab === 'stickers') ? 'block' : 'none';
-      });
-    });
   }
 
   /**
@@ -2160,6 +2201,7 @@
     // 촬영 상태 완전히 초기화 (처음부터 다시 찍기)
     state.currentShot = 0;
     state.photos = [];
+    state.loadedPhotos = [];
 
     // 카운트다운 취소
     cancelCountdown();
@@ -2212,7 +2254,9 @@
     };
     state.bgImages = {};
     state.photos = [];
+    state.loadedPhotos = [];
     state.currentShot = 0;
+    state.adjustments = { brightness: 50, saturation: 50, contrast: 50 };
     state.filter = 'none';
     state.stickers = [];
     state.cameraStream = null;
