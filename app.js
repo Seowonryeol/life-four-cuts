@@ -1213,9 +1213,15 @@
 
       // 'Solid' 또는 'Template 2' 인 경우 10px 검은색 테두리 추가
       if (frameConfig.bg === 'none' || frameConfig.bg === 'vert4_bg2') {
+        ctx.save();
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 10;
+        ctx.lineWidth = 5;
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
         ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+        ctx.restore();
       }
 
       ctx.restore();
@@ -1445,9 +1451,15 @@
 
       // 'Solid' 또는 'Template 2' 인 경우 10px 테두리 추가
       if (state.frame.bg === 'none' || state.frame.bg === 'vert4_bg2') {
+        ctx.save();
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 10;
+        ctx.lineWidth = 5;
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
         ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+        ctx.restore();
       }
 
       ctx.restore();
@@ -1515,9 +1527,15 @@
 
       // 'Solid' 또는 'Template 2' 인 경우 5px 테두리 추가
       if (state.frame.bg === 'none' || state.frame.bg === 'vert4_bg2') {
+        ctx.save();
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 10;
+        ctx.lineWidth = 5;
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
         ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+        ctx.restore();
       }
 
       ctx.restore();
@@ -1611,41 +1629,35 @@
 
   async function uploadImageIfNeeded(canvas) {
     if (state.hostedPageUrl && state.uploadedImageUrl) return true;
-    
     try {
-      // 업로드 용량을 줄이기 위해 JPEG 압축률을 0.50으로 설정 (Cloudinary 미적용 시 1MB 제한 우회)
-      const dataURL = canvas.toDataURL('image/jpeg', 0.50);
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width / 2;
+      tempCanvas.height = canvas.height / 2;
+      const tCtx = tempCanvas.getContext('2d');
+      tCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+      const dataURL = tempCanvas.toDataURL('image/jpeg', 0.60);
       const response = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Bypass-Tunnel-Reminder': 'true'
-        },
-        body: JSON.stringify({ 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           image: dataURL,
           clientBaseUrl: window.location.origin
         })
       });
       const data = await response.json();
-      
       if (data.success) {
         state.hostedPageUrl = data.url;
         state.uploadedImageUrl = data.imageUrl;
         return true;
+      } else {
+        console.error('업로드 실패:', data.error);
+        return false;
       }
-      throw new Error(data.error || 'Upload failed');
     } catch (e) {
-      console.error('업로드 실패:', e);
+      console.error('에러:', e);
       return false;
     }
   }
-
-  /**
-   * QR 코드를 생성하여 컨테이너에 표시합니다.
-   * 백엔드에 이미지를 업로드하고 호스팅된 URL을 QR 코드로 생성합니다.
-   * @param {HTMLElement} container - QR 코드 표시 컨테이너
-   * @param {HTMLCanvasElement} canvas - 합성 캔버스
-   */
   async function generateQR(container, canvas) {
     if (!container) return;
 
