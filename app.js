@@ -800,7 +800,7 @@
       emoji: emoji,
       x: normX,
       y: normY,
-      size: 0.12,        // 캔버스 대비 상대 크기 (목록에서 보이는 사이즈와 유사하게 축소)
+      size: 58 / $('#edit-canvas').width,        // 가로 58px 크기로 삽입
       rotation: 0
     });
     renderEditCanvas();
@@ -1211,10 +1211,10 @@
       drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
       ctx.filter = 'none';
 
-      // 'Solid' 또는 'Template 2' 인 경우 5px 테두리 추가
+      // 'Solid' 또는 'Template 2' 인 경우 10px 검은색 테두리 추가
       if (frameConfig.bg === 'none' || frameConfig.bg === 'vert4_bg2') {
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 10;
         ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
       }
 
@@ -1376,7 +1376,7 @@
     const textColor = brightness > 128 ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
 
     ctx.fillStyle = textColor;
-    ctx.font = 'bold 40px "Outfit", "Pretendard", sans-serif';
+    ctx.font = 'bold 70px "Outfit", "Pretendard", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText(date, w / 2, h - 15);
@@ -1443,10 +1443,10 @@
       drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
       ctx.filter = 'none'; // 필터 초기화
 
-      // 'Solid' 또는 'Template 2' 인 경우 5px 테두리 추가
+      // 'Solid' 또는 'Template 2' 인 경우 10px 테두리 추가
       if (state.frame.bg === 'none' || state.frame.bg === 'vert4_bg2') {
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 10;
         ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
       }
 
@@ -1515,8 +1515,8 @@
 
       // 'Solid' 또는 'Template 2' 인 경우 5px 테두리 추가
       if (state.frame.bg === 'none' || state.frame.bg === 'vert4_bg2') {
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 10;
         ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
       }
 

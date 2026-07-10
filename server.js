@@ -58,6 +58,60 @@ async function setupMailer() {
 }
 setupMailer();
 
+// 청크 임시 저장소
+const chunkStorage = {};
+
+app.post('/api/upload/chunk', (req, res) => {
+  const { uuid, chunkIndex, totalChunks, chunkData } = req.body;
+  if (!chunkStorage[uuid]) {
+    chunkStorage[uuid] = new Array(totalChunks);
+  }
+  chunkStorage[uuid][chunkIndex] = chunkData;
+  res.json({ success: true });
+});
+
+app.post('/api/upload/complete', async (req, res) => {
+  try {
+    const { uuid, clientBaseUrl } = req.body;
+    if (!chunkStorage[uuid]) return res.status(400).json({ error: 'No chunks found' });
+
+    const image = chunkStorage[uuid].join('');
+    delete chunkStorage[uuid];
+
+    if (process.env.CLOUDINARY_URL) {
+      try {
+        const result = await cloudinary.uploader.upload(image, { folder: 'life-four-cuts' });
+        return res.json({ success: true, id: result.public_id, url: result.secure_url, imageUrl: result.secure_url });
+      } catch (cloudErr) {
+        console.error('Cloudinary error:', cloudErr);
+      }
+    }
+
+    const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ error: 'Invalid format' });
+    }
+
+    const ext = matches[1].split('/')[1] || 'png';
+    const buffer = Buffer.from(matches[2], 'base64');
+    
+    const id = uuid;
+    const filename = `${id}.${ext}`;
+    const filepath = path.join(uploadDir, filename);
+
+    fs.writeFileSync(filepath, buffer);
+
+    const clientOrigin = req.headers['origin'] || req.headers['x-forwarded-host'] ? `${req.headers['x-forwarded-proto'] || req.headers['x-forwarded-host']}` : `${req.protocol}://${req.get('host')}`;
+    const baseUrl = clientBaseUrl || clientOrigin;
+    const photoUrl = `${baseUrl}/photo/${id}`;
+
+    res.json({ success: true, id, url: photoUrl, imageUrl: `${baseUrl}/uploads/${filename}` });
+  } catch (error) {
+    console.error('Upload complete error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // 이미지 업로드 API (Base64)
 app.post('/api/upload', async (req, res) => {
   try {
