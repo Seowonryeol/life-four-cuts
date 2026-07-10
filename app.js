@@ -800,7 +800,7 @@
       emoji: emoji,
       x: normX,
       y: normY,
-      size: 58 / $('#edit-canvas').width,        // 가로 58px 크기로 삽입
+      size: 1297.8 / $('#edit-canvas').width,        // 가로 58px 크기로 삽입
       rotation: 0
     });
     renderEditCanvas();
@@ -1378,11 +1378,10 @@
    */
   function drawDateWatermark(ctx, w, h, bgColor) {
     const date = getFormattedDate();
-    const brightness = getColorBrightness(bgColor);
-    const textColor = brightness > 128 ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+    const textColor = '#000000'; // 강제 검은색
 
     ctx.fillStyle = textColor;
-    ctx.font = 'bold 70px "Outfit", "Pretendard", sans-serif';
+    ctx.font = '900 70px "Outfit", "Pretendard", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText(date, w / 2, h - 15);
@@ -1586,6 +1585,7 @@
 
   // 초기화 함수
   async function init() {
+    try { state.sampleImage = await loadImage('./assets/sample.png'); } catch(e) {}
     await preloadBackgrounds();
   }
 
@@ -1630,12 +1630,7 @@
   async function uploadImageIfNeeded(canvas) {
     if (state.hostedPageUrl && state.uploadedImageUrl) return true;
     try {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width / 2;
-      tempCanvas.height = canvas.height / 2;
-      const tCtx = tempCanvas.getContext('2d');
-      tCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
-      const dataURL = tempCanvas.toDataURL('image/jpeg', 0.60);
+      const dataURL = canvas.toDataURL('image/jpeg', 0.90);
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2265,6 +2260,7 @@
       bg: 'none'
     };
     state.bgImages = {};
+    state.sampleImage = null;
     state.photos = [];
     state.loadedPhotos = [];
     state.currentShot = 0;
