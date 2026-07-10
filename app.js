@@ -67,7 +67,8 @@
     resizeStartSize: 0,
     stickerIdCounter: 0,
     uploadedImageUrl: null,
-    hostedPageUrl:    null
+    hostedPageUrl:    null,
+    selectedCameraId: null
   };
 
   function getTotalShots() {
@@ -231,11 +232,16 @@
       const constraints = {
         video: {
           width:      CONFIG.camera.width,
-          height:     CONFIG.camera.height,
-          facingMode: CONFIG.camera.facingMode
+          height:     CONFIG.camera.height
         },
         audio: false
       };
+
+      if (state.selectedCameraId) {
+        constraints.video.deviceId = { exact: state.selectedCameraId };
+      } else {
+        constraints.video.facingMode = CONFIG.camera.facingMode;
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       state.cameraStream = stream;
@@ -250,6 +256,9 @@
 
         await video.play();
       }
+
+      // 카메라 디바이스 목록 갱신
+      await populateCameraDevices();
     } catch (error) {
       console.error('카메라 초기화 실패:', error);
       const isNotAllowed = error.name === 'NotAllowedError' || error.name === 'SecurityError';
@@ -275,6 +284,49 @@
         }
       }
       alert(msg);
+    }
+  }
+
+  /**
+   * 사용 가능한 카메라 장치 목록을 가져와 드롭다운에 채웁니다.
+   */
+  async function populateCameraDevices() {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        return;
+      }
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      const select = $('#camera-select');
+      if (!select) return;
+
+      select.innerHTML = '';
+
+      if (videoDevices.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.innerText = '카메라 없음';
+        select.appendChild(opt);
+        return;
+      }
+
+      videoDevices.forEach((device, index) => {
+        const opt = document.createElement('option');
+        opt.value = device.deviceId;
+        opt.innerText = device.label || `카메라 ${index + 1}`;
+        if (state.selectedCameraId === device.deviceId) {
+          opt.selected = true;
+        } else if (!state.selectedCameraId) {
+          // 현재 활성화된 스트림의 장치 ID와 비교
+          const activeTrack = state.cameraStream ? state.cameraStream.getVideoTracks()[0] : null;
+          if (activeTrack && activeTrack.getSettings().deviceId === device.deviceId) {
+            opt.selected = true;
+          }
+        }
+        select.appendChild(opt);
+      });
+    } catch (err) {
+      console.error('카메라 디바이스 목록 로드 실패:', err);
     }
   }
 
@@ -1735,6 +1787,9 @@
     // 촬영 표시기 업데이트
     updateShotIndicator();
 
+    const select = $('#camera-select');
+    if (select) select.disabled = false;
+
     // 우측 레이아웃 프레임 썸네일 캔버스 초기화 (빈 슬롯 상태로 그리기)
     renderShootPreviewCanvas();
 
@@ -1753,6 +1808,9 @@
    * 촬영 시퀀스: 카운트다운 → 캡처 → 다음 촬영 또는 완료
    */
   function startShootingSequence() {
+    const select = $('#camera-select');
+    if (select) select.disabled = true;
+
     const totalShots = getTotalShots();
     
     if (state.currentShot >= totalShots) {
@@ -2096,6 +2154,9 @@
    * 마지막 촬영을 재촬영합니다.
    */
   function handleRetake() {
+    const select = $('#camera-select');
+    if (select) select.disabled = false;
+
     // 촬영 상태 완전히 초기화 (처음부터 다시 찍기)
     state.currentShot = 0;
     state.photos = [];
@@ -2234,6 +2295,18 @@
     const btnRetake = $('#btn-retake');
     if (btnRetake) {
       btnRetake.addEventListener('click', handleRetake);
+    }
+
+    // 카메라 선택 이벤트 등록
+    const cameraSelect = $('#camera-select');
+    if (cameraSelect) {
+      cameraSelect.addEventListener('change', async (e) => {
+        const deviceId = e.target.value;
+        if (!deviceId) return;
+        state.selectedCameraId = deviceId;
+        console.log('카메라 변경 시도:', deviceId);
+        await initCamera();
+      });
     }
 
     // 편집 완료 → 결과 화면
