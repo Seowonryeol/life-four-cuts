@@ -944,15 +944,9 @@
       if (state.selectedSticker !== null && isResizeHandleHit(state.selectedSticker, normX, normY)) {
         isResizing = true;
         const s = state.stickers[state.selectedSticker];
-        // 핸들(우하단) 중심까지의 거리를 기준으로 리사이즈
-        const canvasW = canvas.width;
-        const canvasH = canvas.height;
-        const fontSize = s.size * canvasW;
-        const halfSize = fontSize / 2 + 4;
-        const handleNX = (s.x * canvasW + halfSize) / canvasW;
-        const handleNY = (s.y * canvasH + halfSize) / canvasH;
+        // 스티커 중심(s.x, s.y)에서 클릭 지점까지의 거리를 기준으로 리사이즈
         resizeStartDist = Math.sqrt(
-          Math.pow(normX - handleNX, 2) + Math.pow(normY - handleNY, 2)
+          Math.pow(normX - s.x, 2) + Math.pow(normY - s.y, 2)
         );
         if (resizeStartDist < 0.001) resizeStartDist = 0.001; // 0 나누기 방지
         resizeStartSize = s.size;
@@ -997,16 +991,10 @@
       const { normX, normY } = getCanvasCoords(e);
 
       if (isResizing && state.selectedSticker !== null) {
-        // 크기 조절: 핸들 중심을 기준으로 거리 계산
+        // 크기 조절: 스티커 중심(s.x, s.y)에서 현재 포인터까지의 거리 계산
         const s = state.stickers[state.selectedSticker];
-        const canvasW = canvas.width;
-        const canvasH = canvas.height;
-        const prevFontSize = s.size * canvasW;
-        const prevHalf    = prevFontSize / 2 + 4;
-        const handleNX    = (s.x * canvasW + prevHalf) / canvasW;
-        const handleNY    = (s.y * canvasH + prevHalf) / canvasH;
         const currentDist = Math.sqrt(
-          Math.pow(normX - handleNX, 2) + Math.pow(normY - handleNY, 2)
+          Math.pow(normX - s.x, 2) + Math.pow(normY - s.y, 2)
         );
         const scale = currentDist / resizeStartDist;
         s.size = clamp(resizeStartSize * scale, 0.03, 0.30);
