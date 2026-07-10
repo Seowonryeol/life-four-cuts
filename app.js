@@ -800,7 +800,7 @@
       emoji: emoji,
       x: normX,
       y: normY,
-      size: 432.6 / $('#edit-canvas').width,        // 가로 58px 크기로 삽입
+      size: 216.3 / $('#edit-canvas').width,        // 가로 58px 크기로 삽입
       rotation: 0
     });
     renderEditCanvas();
@@ -1636,7 +1636,7 @@
   async function uploadImageIfNeeded(canvas) {
     if (state.hostedPageUrl && state.uploadedImageUrl) return true;
     try {
-      const dataURL = canvas.toDataURL('image/jpeg', 0.90);
+      const dataURL = canvas.toDataURL('image/png');
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
