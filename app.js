@@ -894,14 +894,7 @@
         ctx.font = `bold 32px sans-serif`;
         ctx.fillText('⤡', halfSize, halfSize);
 
-        // 회전 핸들 (우상단)
-        ctx.fillStyle = 'rgba(52, 199, 89, 0.9)';
-        ctx.beginPath();
-        ctx.arc(halfSize, -halfSize, 32, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = `bold 32px sans-serif`;
-        ctx.fillText('↻', halfSize, -halfSize);
+
       }
 
       ctx.restore();
@@ -939,23 +932,14 @@
     //   모두 norm 좌표로 변환해서 비교합니다.
     // ─────────────────────────────────────────────────────────────
 
-    function getLocalCoords(s, normX, normY) {
-      const canvasW = canvas.width;
-      const canvasH = canvas.height;
-      const dxPx = normX * canvasW - s.x * canvasW;
-      const dyPx = normY * canvasH - s.y * canvasH;
-      const angle = s.angle || 0;
-      const localX = dxPx * Math.cos(-angle) - dyPx * Math.sin(-angle);
-      const localY = dxPx * Math.sin(-angle) + dyPx * Math.cos(-angle);
-      return { localX, localY };
-    }
+
 
     function isDeleteButtonHit(stickerIndex, normX, normY) {
       const s = state.stickers[stickerIndex];
       if (!s) return false;
       const canvasW = canvas.width;
       const halfSize = (s.size * canvasW) / 2 + 4;
-      const { localX, localY } = getLocalCoords(s, normX, normY);
+      const { localX, localY } = getLocalCoords(s, normX, normY, canvas);
       return Math.hypot(localX - (-halfSize), localY - (-halfSize)) < 48; // 좌상단
     }
 
@@ -964,22 +948,15 @@
       if (!s) return false;
       const canvasW = canvas.width;
       const halfSize = (s.size * canvasW) / 2 + 4;
-      const { localX, localY } = getLocalCoords(s, normX, normY);
+      const { localX, localY } = getLocalCoords(s, normX, normY, canvas);
       return Math.hypot(localX - halfSize, localY - halfSize) < 48; // 우하단
     }
     
-    function isRotateHandleHit(stickerIndex, normX, normY) {
-      const s = state.stickers[stickerIndex];
-      if (!s) return false;
-      const canvasW = canvas.width;
-      const halfSize = (s.size * canvasW) / 2 + 4;
-      const { localX, localY } = getLocalCoords(s, normX, normY);
-      return Math.hypot(localX - halfSize, localY - (-halfSize)) < 48; // 우상단
-    }
+
 
     let isResizing = false;
-      isRotating = false;
-    let isRotating = false;
+      
+    
     let resizeStartDist = 0;
     let resizeStartSize = 0;
 
@@ -1003,11 +980,6 @@
         }
       }
 
-      if (state.selectedSticker !== null && isRotateHandleHit(state.selectedSticker, normX, normY)) {
-        isRotating = true;
-        return;
-      }
-      
       // 2. 선택된 스티커의 크기 조절 핸들 확인
       if (state.selectedSticker !== null && isResizeHandleHit(state.selectedSticker, normX, normY)) {
         isResizing = true;
@@ -1056,20 +1028,9 @@
       e.preventDefault();
       const { normX, normY } = getCanvasCoords(e);
 
-      if (isRotating && state.selectedSticker !== null) {
-        const s = state.stickers[state.selectedSticker];
-        const rect = canvas.getBoundingClientRect();
-        const pixelDx = (normX - s.x) * rect.width;
-        const pixelDy = (normY - s.y) * rect.height;
-        // The rotate handle is at the top right (+x, -y). So its natural angle is -PI/4.
-        const pointerAngle = Math.atan2(pixelDy, pixelDx);
-        s.angle = pointerAngle + Math.PI / 4;
-        renderEditCanvas();
-        return;
-      }
+
       
       if (isResizing && state.selectedSticker !== null) {
-        // 크기 조절: 스티커 중심(s.x, s.y)에서 현재 포인터까지의 픽셀 거리 계산
         const s = state.stickers[state.selectedSticker];
         const rect = canvas.getBoundingClientRect();
         const pixelDx = (normX - s.x) * rect.width;
@@ -1078,6 +1039,11 @@
         
         const scale = currentDist / resizeStartDist;
         s.size = clamp(resizeStartSize * scale, 0.03, 0.80);
+        
+        // 회전 각도 업데이트 (우하단 ⤡ 핸들이므로 기본 각도는 +PI/4)
+        const pointerAngle = Math.atan2(pixelDy, pixelDx);
+        s.angle = pointerAngle - Math.PI / 4;
+        
         renderEditCanvas();
         return;
       }
@@ -1095,7 +1061,7 @@
     function handlePointerUp(e) {
       state.isDragging = false;
       isResizing = false;
-      isRotating = false;
+      
     }
 
     // 더블클릭/더블탭: 스티커 크기 순환
@@ -1170,11 +1136,10 @@
   async function composeImage(photos, frameConfig, filterName, stickers) {
     const layout = CONFIG.layouts[frameConfig.layout] || CONFIG.layouts.strip;
     const canvas = document.createElement('canvas');
-    canvas.width = layout.canvasWidth / 3;
-    canvas.height = layout.canvasHeight / 3;
+    canvas.width = layout.canvasWidth;
+    canvas.height = layout.canvasHeight;
 
     const ctx = canvas.getContext('2d');
-    ctx.scale(1/3, 1/3);
 
     // 배경색 (프레임 색상)
     if (frameConfig.bg !== 'none' && state.bgImages && state.bgImages[frameConfig.bg]) {
@@ -1245,7 +1210,13 @@
     // 날짜 워터마크
     drawDateWatermark(ctx, canvas.width, canvas.height, frameConfig.color);
 
-    return canvas;
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = layout.canvasWidth / 3;
+    finalCanvas.height = layout.canvasHeight / 3;
+    const fCtx = finalCanvas.getContext('2d');
+    fCtx.drawImage(canvas, 0, 0, finalCanvas.width, finalCanvas.height);
+
+    return finalCanvas;
   }
 
   /**
