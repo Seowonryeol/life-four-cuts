@@ -1246,13 +1246,7 @@
     // 날짜 워터마크
     drawDateWatermark(ctx, canvas.width, canvas.height, frameConfig.color);
 
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = layout.canvasWidth / 3;
-    finalCanvas.height = layout.canvasHeight / 3;
-    const fCtx = finalCanvas.getContext('2d');
-    fCtx.drawImage(canvas, 0, 0, finalCanvas.width, finalCanvas.height);
-
-    return finalCanvas;
+    return canvas;
   }
 
   /**
