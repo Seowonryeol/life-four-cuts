@@ -1636,7 +1636,7 @@
   async function uploadImageIfNeeded(canvas) {
     if (state.hostedPageUrl && state.uploadedImageUrl) return true;
     try {
-      const dataURL = canvas.toDataURL('image/png');
+      const dataURL = canvas.toDataURL('image/jpeg', 0.90);
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
