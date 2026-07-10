@@ -2106,8 +2106,14 @@
    * 편집 화면 초기화
    */
   async function initEditScreen() {
-    // 카메라 정지
+    // 카메라 끄기
     stopCamera();
+
+    // 우측 패널 스크롤 초기화
+    const editControls = document.querySelector('.edit-controls');
+    if (editControls) {
+      editControls.scrollTop = 0;
+    }
 
     // 필터 및 기타 상태 초기화
     state.filter = 'none';
