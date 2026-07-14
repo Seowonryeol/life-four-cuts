@@ -44,7 +44,7 @@
         canvasHeight: 1340,
         photoWidth:   540,
         photoHeight:  540,
-        padding: 60,
+        padding: 45,
         gap:     30,
         totalShots: 4
       },
@@ -1367,8 +1367,8 @@
 
     const ctx = canvas.getContext('2d');
 
-    // 배경 설정
-    drawBackground(ctx, canvas.width, canvas.height, frameConfig.bg, frameConfig.color);
+    // 배경 설정 (skipOverlay=true)
+    drawBackground(ctx, canvas.width, canvas.height, frameConfig.bg, frameConfig.color, true);
 
     // 사진 위치 계산
     const positions = getPhotoPositions(frameConfig.layout, layout);
@@ -1585,7 +1585,7 @@
   /**
    * 배경 스타일을 Canvas에 렌더링합니다.
    */
-  function drawBackground(ctx, w, h, bgKey, solidColor) {
+  function drawBackground(ctx, w, h, bgKey, solidColor, skipOverlay = false) {
     ctx.save();
     switch (bgKey) {
       case 'gradient_pink': {
@@ -1688,23 +1688,23 @@
         }
         break;
       }
+      case 'vert4_bg1':
       case 'vert4_bg2':
-        if (state.bgImages && state.bgImages['vert4_bg2']) {
-          ctx.drawImage(state.bgImages['vert4_bg2'], 0, 0, w, h);
-        } else {
-          ctx.fillStyle = solidColor || '#ffffff';
-          ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = solidColor || '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        if (!skipOverlay && state.bgImages && state.bgImages[bgKey]) {
+          ctx.drawImage(state.bgImages[bgKey], 0, 0, w, h);
         }
         break;
       default:
-        // Custom uploaded template
-        if (bgKey && bgKey.startsWith('custom_') && state.bgImages && state.bgImages[bgKey]) {
-          ctx.drawImage(state.bgImages[bgKey], 0, 0, w, h);
-        } else if (bgKey !== 'none' && state.bgImages && state.bgImages[bgKey]) {
-          ctx.drawImage(state.bgImages[bgKey], 0, 0, w, h);
-        } else {
-          ctx.fillStyle = solidColor || '#000000';
-          ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = solidColor || '#000000';
+        ctx.fillRect(0, 0, w, h);
+        if (!skipOverlay) {
+          if (bgKey && bgKey.startsWith('custom_') && state.bgImages && state.bgImages[bgKey]) {
+            ctx.drawImage(state.bgImages[bgKey], 0, 0, w, h);
+          } else if (bgKey !== 'none' && state.bgImages && state.bgImages[bgKey]) {
+            ctx.drawImage(state.bgImages[bgKey], 0, 0, w, h);
+          }
         }
     }
     ctx.restore();
@@ -1785,9 +1785,9 @@
     ctx.textAlign = 'center';
 
     // 브랜드 텍스트
-    ctx.font = '700 48px "Outfit", "Pretendard", sans-serif';
+    ctx.font = '700 84px "Outfit", "Pretendard", sans-serif'; // 70px * 1.2 = 84px
     ctx.textBaseline = 'bottom';
-    ctx.fillText('Life Four Cuts', w / 2, h - 68);
+    ctx.fillText('Life Four Cuts', w / 2, h - 95); // 10px (bottom) + 70px (date height) + 15px (gap) = 95px
 
     // 날짜 텍스트
     ctx.font = '900 70px "Outfit", "Pretendard", sans-serif';
@@ -1816,8 +1816,8 @@
 
     const ctx = canvas.getContext('2d');
 
-    // 1) 캔버스 배경 설정
-    drawBackground(ctx, canvas.width, canvas.height, state.frame.bg, state.frame.color);
+    // 1) 캔버스 배경 설정 (skipOverlay=true)
+    drawBackground(ctx, canvas.width, canvas.height, state.frame.bg, state.frame.color, true);
 
     // 사진 위치
     const positions = getPhotoPositions(state.frame.layout, layout);
@@ -1850,23 +1850,28 @@
       drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
       ctx.filter = 'none'; // 필터 초기화
 
-      // 'Solid' 또는 'Template 2' 인 경우 10px 테두리 추가
-      if (state.frame.bg === 'none' || state.frame.bg === 'vert4_bg2') {
-        ctx.save();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 5;
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 3;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
-        ctx.restore();
-      }
+      // 모든 사진에 3px 검은색 테두리 및 3px 우하단 그림자
+      ctx.save();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 3;
+      ctx.shadowOffsetY = 3;
+      ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+      ctx.restore();
 
       ctx.restore();
     }
 
-    // 데코 이미지 그리기 (사진 위, 스티커 아래)
+    // 오버레이 템플릿 덧그리기 (사진 위)
+    const bgKey = state.frame.bg;
+    if (bgKey === 'vert4_bg1' || bgKey === 'vert4_bg2' || (bgKey && bgKey.startsWith('custom_'))) {
+      if (state.bgImages && state.bgImages[bgKey]) {
+        ctx.drawImage(state.bgImages[bgKey], 0, 0, canvas.width, canvas.height);
+      }
+    }
+    // 기존 데코 이미지 그리기 (사진 위, 스티커 아래)
     if (state.frame.deco !== 'none' && state.decoImages && state.decoImages[state.frame.deco]) {
       ctx.drawImage(state.decoImages[state.frame.deco], 0, 0, canvas.width, canvas.height);
     }
@@ -1957,8 +1962,8 @@
       { key: 'bg1', path: 'assets/background_01.png' },
       { key: 'bg2', path: 'assets/background_02.png' },
       { key: 'bg3', path: 'assets/background_03.png' },
-      { key: 'vert4_bg1', path: 'assets/vert4_template_background_01.png' },
-      { key: 'vert4_bg2', path: 'assets/vert4_template_background_02.png' }
+      { key: 'vert4_bg1', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784008120/vert4_template_deco_01_wq4jtw.png' },
+      { key: 'vert4_bg2', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784008119/vert4_template_02_phgfmj.png' }
     ];
     
     const decos = [
@@ -2363,6 +2368,10 @@
     const shootNowBtn = $('#btn-shoot-now');
     if (shootNowBtn) shootNowBtn.classList.add('hidden');
 
+    // Next 버튼 숨기기
+    const nextBtn = document.getElementById('btn-shoot-next');
+    if (nextBtn) nextBtn.classList.add('hidden');
+    
     // 촬영 시작 버튼 표시
     const startBtn = $('#btn-start-shooting');
     if (startBtn) {
@@ -2469,13 +2478,15 @@
           if (state.currentScreen === 'shoot') startShootingSequence();
         }, 2200);
       } else {
-        // 촬영 완료 → 재촬영 말풍선 표시 후 편집화면 이동
+        // 촬영 완료 → 재촬영 말풍선 및 Next 버튼 표시
         setTimeout(() => {
           if (state.currentScreen === 'shoot') {
             showRetakeTooltip();
-            setTimeout(() => {
-              if (state.currentScreen === 'shoot') showScreen('edit');
-            }, 3000);
+            const nextBtn = document.getElementById('btn-shoot-next');
+            if (nextBtn) {
+              nextBtn.classList.remove('hidden');
+              nextBtn.onclick = () => showScreen('edit');
+            }
           }
         }, 1200);
       }
@@ -2707,6 +2718,11 @@
         $$('.color-swatch').forEach(s => s.classList.remove('active'));
         clone.classList.add('active');
         state.frame.color = clone.dataset.color;
+        state.frame.bg = 'none'; // ADDED: clear background image
+        // Update bg UI to remove active state
+        $$('.style-option-item').forEach(el => el.classList.remove('active'));
+        const noneOption = document.querySelector('.style-option-item[data-bg="none"]');
+        if (noneOption) noneOption.classList.add('active');
         renderEditCanvas();
       });
 
