@@ -272,6 +272,10 @@ app.get('/photo/:id', (req, res) => {
   res.send(html);
 });
 
+// Healthcheck endpoint (Render + UptimeRobot 슬립 방지용)
+app.get('/healthcheck', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+
 app.listen(PORT, () => {
+
   console.log(`🚀 인생네컷 서버가 http://localhost:${PORT} 에서 실행 중입니다.`);
 });
