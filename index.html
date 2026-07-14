@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="인생네컷 포토부스 — 프리미엄 셀프 사진 촬영 및 편집 앱. 다양한 프레임, 필터, 스티커로 나만의 특별한 네 컷 사진을 만들어 보세요.">
+  <meta name="description" content="인생네컷 포토부스 — 프리미엄 셀프 사진 촬영 및 편집 앱. 다양한 프레임, 필터, 스티커로 나만의 특별한 사진을 만들어 보세요.">
   <meta name="theme-color" content="#08081a">
-  <title>인생네컷 Photo Booth</title>
+  <title>Life Four Cuts Photo Booth</title>
 
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
@@ -21,127 +21,201 @@
     <span class="splash-text">LOADING</span>
   </div>
 
-  <!-- ═══ Sticker Cursor Follower (mouse drag visual) ═══ -->
+  <!-- ═══ Sticker Cursor Follower ═══ -->
   <div id="sticker-cursor" aria-hidden="true"></div>
 
   <!-- ═══ App Container ═══ -->
   <div id="app">
 
-    <!-- ═══════════════════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
          SCREEN 1 — START
-         ═══════════════════════════════════════════════════════ -->
+         ═══════════════════════════════════════════ -->
     <section id="screen-start" class="screen active" aria-label="시작 화면">
-      <!-- Decorative bokeh background -->
       <div class="bokeh-layer" aria-hidden="true">
         <div class="bokeh-particle"></div>
         <div class="bokeh-particle"></div>
         <div class="bokeh-particle"></div>
         <div class="bokeh-particle"></div>
       </div>
-
       <div class="start-content">
         <div class="start-icon float-animation" aria-hidden="true">📷</div>
-        <h1 class="gradient-text">ជីវិតបួនសន្លឹក<br><span style="font-size: 0.9em; line-height: 1;">Life Four Cuts</span></h1>
+        <h1 class="gradient-text">ជីវិតបួនសន្លឹក<br><span style="font-size:0.9em;line-height:1;">Life Four Cuts</span></h1>
         <p class="subtitle">PHOTO BOOTH</p>
-        <p class="instruction">ចុចប៊ូតុងដើម្បីចាប់ផ្តើមថត<br><span style="font-size: 0.9em;">Press the button to start shooting</span></p>
+        <p class="instruction">ចុចប៊ូតុងដើម្បីចាប់ផ្តើមថត<br><span style="font-size:0.9em;">Press the button to start</span></p>
         <button id="btn-start" class="btn-primary" aria-label="촬영 시작하기">
-          📸 ចាប់ផ្តើម<br><span style="font-size: 0.9em;">Start</span>
+          📸 ចាប់ផ្តើម<br><span style="font-size:0.9em;">Start</span>
         </button>
       </div>
     </section>
 
-    <!-- ═══════════════════════════════════════════════════════
-         SCREEN 2 — FRAME STYLE SELECTION (strip only)
-         ═══════════════════════════════════════════════════════ -->
+    <!-- ═══════════════════════════════════════════
+         SCREEN 2 — LAYOUT & FRAME SELECTION
+         ═══════════════════════════════════════════ -->
     <section id="screen-frame" class="screen" aria-label="스타일 선택 화면">
       <header class="screen-header">
         <nav class="step-indicator" aria-label="진행 단계">
-          <span class="step-dot done" aria-label="완료"></span>
-          <span class="step-dot active" aria-label="현재 단계: 스타일 선택"></span>
-          <span class="step-dot" aria-label="촬영"></span>
-          <span class="step-dot" aria-label="편집"></span>
-          <span class="step-dot" aria-label="완료"></span>
+          <span class="step-dot done"></span>
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
         </nav>
-        <h2>ជីវិតបួនសន្លឹកបញ្ឈរ<br><span style="font-size: 0.9em;">Vertical 4 Cuts</span></h2>
+        <h2>រើសទ្រង់ទ្រាយ<br><span style="font-size:0.9em;">Choose Layout</span></h2>
       </header>
 
-      <!-- PC/Tablet: two-column layout -->
       <div class="frame-select-body">
-        <!-- Left: preview -->
+        <!-- Left: preview canvas -->
         <div class="frame-preview-container">
-          <canvas id="frame-preview" width="300" height="400" aria-label="프레임 미리보기"></canvas>
+          <canvas id="frame-preview" aria-label="프레임 미리보기"></canvas>
         </div>
 
-        <!-- Right: info + button -->
+        <!-- Right: layout options + info -->
         <div class="frame-select-info">
-          <div class="frame-info-badge">📸 បួនសន្លឹកបញ្ឈរ / Vertical 4 Cuts</div>
-          <p class="frame-info-desc">បន្ទាប់ពីថតរូប ៤ សន្លឹករួច<br>អ្នកអាចតុបតែងវាជាមួយពណ៌ និងគំរូ។<br><span style="font-size: 0.9em; opacity: 0.8;">After taking 4 photos, you can decorate them with colors and templates.</span></p>
+
+          <!-- Layout Selection -->
+          <div class="option-group">
+            <label>ទ្រង់ទ្រាយ / Layout</label>
+            <div class="layout-cards" id="layout-cards">
+              <button class="layout-card active" data-layout="strip4" aria-pressed="true" id="layout-strip4">
+                <div class="layout-icon layout-icon-strip4">
+                  <div></div><div></div><div></div><div></div>
+                </div>
+                <span>4컷 세로<br><small>Vertical 4</small></span>
+              </button>
+              <button class="layout-card" data-layout="strip3" aria-pressed="false" id="layout-strip3">
+                <div class="layout-icon layout-icon-strip3">
+                  <div></div><div></div><div></div>
+                </div>
+                <span>3컷 세로<br><small>Vertical 3</small></span>
+              </button>
+              <button class="layout-card" data-layout="grid22" aria-pressed="false" id="layout-grid22">
+                <div class="layout-icon layout-icon-grid22">
+                  <div></div><div></div><div></div><div></div>
+                </div>
+                <span>2×2 격자<br><small>Grid 2×2</small></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Template download -->
+          <div class="option-group">
+            <button id="btn-download-template" class="btn-secondary btn-sm">
+              📐 규격 다운로드<br><small>Download Template</small>
+            </button>
+          </div>
+
           <ul class="frame-info-list">
-            <li>✅ ការកំណត់កាមេរ៉ាស្វ័យប្រវត្តិ / Auto Selfie Camera</li>
-            <li>✅ ជ្រើសរើសពណ៌ និងគំរូ / Select Color & Template</li>
-            <li>✅ តុបតែងដោយតម្រង និងស្ទីកឃ័រ / Decorate with Filters & Stickers</li>
-            <li>✅ រក្សាទុក / QR / ផ្ញើអ៊ីមែល / Save / QR / Send Email</li>
+            <li>✅ ការកំណត់កាមេរ៉ាស្វ័យប្រវត្តិ / Auto Camera</li>
+            <li>✅ ជ្រើសរើសពណ៌ / Select Color &amp; Template</li>
+            <li>✅ តុបតែងដោយតម្រង &amp; ស្ទីកឃ័រ / Filters &amp; Stickers</li>
+            <li>✅ រក្សាទុក / QR / អ៊ីមែល / Save / QR / Email</li>
           </ul>
-          <div class="button-group" style="margin-top: 24px;">
-            <button id="btn-frame-back" class="btn-secondary" aria-label="시작 화면으로 이동">← ត្រឡប់ក្រោយ<br><span style="font-size: 0.9em;">Back</span></button>
-            <button id="btn-frame-next" class="btn-primary" aria-label="다음 단계로 이동">ចាប់ផ្តើមថត →<br><span style="font-size: 0.9em;">Start Shooting</span></button>
+
+          <div class="button-group" style="margin-top:20px;">
+            <button id="btn-frame-back" class="btn-secondary">← ត្រឡប់<br><span style="font-size:0.9em;">Back</span></button>
+            <button id="btn-frame-next" class="btn-primary">ថតរូប →<br><span style="font-size:0.9em;">Next</span></button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ═══════════════════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
          SCREEN 3 — SHOOTING
-         ═══════════════════════════════════════════════════════ -->
+         ═══════════════════════════════════════════ -->
     <section id="screen-shoot" class="screen" aria-label="촬영 화면">
       <div class="shoot-layout">
+
         <!-- Camera Area -->
         <div class="camera-container" aria-live="polite">
           <div class="camera-aspect-box">
             <video id="camera-preview" autoplay playsinline muted aria-label="카메라 미리보기"></video>
-            <div id="pose-instruction" class="pose-instruction-overlay hidden">សូមធ្វើកាយវិការ! 📸<br><span style="font-size: 0.9em;">Please strike a pose!</span></div>
+            <div id="pose-instruction" class="pose-instruction-overlay hidden">
+              សូមធ្វើកាយវិការ! 📸<br><span style="font-size:0.9em;">Strike a pose!</span>
+            </div>
             <div id="countdown-number" class="countdown-overlay" aria-live="polite"></div>
             <div id="camera-flash" class="flash-overlay" aria-hidden="true"></div>
+
+            <!-- Retake tooltip -->
+            <div id="retake-tooltip" class="retake-tooltip hidden" aria-live="polite">
+              💡 ចង់ថតថ្មី? ចុចលើរូបភាពណាមួយ!<br>
+              <small>Tap any photo to retake it!</small>
+              <button id="btn-retake-tooltip-close" class="tooltip-close">✕</button>
+            </div>
           </div>
         </div>
 
         <!-- Sidebar -->
         <aside class="shoot-sidebar">
-          <div id="shot-indicator" class="glass-panel" aria-label="촬영 진행 상태">
+
+          <!-- Shot indicator -->
+          <div id="shot-indicator" class="glass-panel shot-indicator-wrap" aria-label="촬영 진행 상태">
             <span class="shot-current">1</span>
             <span class="shot-total"> / 4</span>
           </div>
-          <div class="camera-select-container glass-panel">
-            <label for="camera-select">📷 កាមេរ៉ា / Camera</label>
-            <select id="camera-select" class="glass-select" aria-label="카메라 선택">
-              <option value="">កំពុងផ្ទុកកាមេរ៉ា... / Loading camera...</option>
-            </select>
+
+          <!-- Camera controls -->
+          <div class="camera-controls-row">
+            <div class="camera-select-container glass-panel">
+              <label for="camera-select">📷 Camera</label>
+              <select id="camera-select" class="glass-select" aria-label="카메라 선택">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+            <button id="btn-flip-camera" class="btn-icon glass-panel" title="카메라 전환" aria-label="전면/후면 카메라 전환">
+              🔄
+            </button>
           </div>
+
+          <!-- Timer options -->
+          <div class="timer-options glass-panel" id="timer-options">
+            <label>⏱ ម៉ោងរង់ចាំ / Timer</label>
+            <div class="timer-btns">
+              <button class="timer-btn" data-seconds="3" id="timer-3">3s</button>
+              <button class="timer-btn active" data-seconds="5" id="timer-5">5s</button>
+              <button class="timer-btn" data-seconds="10" id="timer-10">10s</button>
+            </div>
+          </div>
+
+          <!-- Shoot preview canvas -->
           <div class="shoot-preview-frame-container">
-            <canvas id="shoot-preview-canvas" aria-label="실시간 촬영 프레임 미리보기"></canvas>
+            <canvas id="shoot-preview-canvas" aria-label="촬영 현황 미리보기"></canvas>
           </div>
-          <button id="btn-retake" class="btn-secondary" aria-label="처음부터 다시 촬영">🔄 ថតម្ដងទៀត<br><span style="font-size: 0.9em;">Retake</span></button>
-          <button id="btn-shoot-back" class="btn-secondary" aria-label="스타일 선택 화면으로 이동">← ត្រឡប់ក្រោយ<br><span style="font-size: 0.9em;">Back</span></button>
+
+          <!-- Start shooting button (shown before shooting starts) -->
+          <button id="btn-start-shooting" class="btn-primary btn-start-shooting" aria-label="촬영 시작">
+            📸 ចាប់ផ្តើមថត<br><span style="font-size:0.9em;">Start Shooting</span>
+          </button>
+
+          <!-- Shoot now button (shown during countdown) -->
+          <button id="btn-shoot-now" class="btn-secondary btn-shoot-now hidden" aria-label="즉시 촬영">
+            ⚡ ថតឥឡូវ<br><span style="font-size:0.9em;">Shoot Now!</span>
+          </button>
+
+          <button id="btn-retake" class="btn-secondary" aria-label="처음부터 다시 촬영">
+            🔄 ថតម្ដងទៀត<br><span style="font-size:0.9em;">Retake All</span>
+          </button>
+          <button id="btn-shoot-back" class="btn-secondary" aria-label="이전 화면">
+            ← ត្រឡប់<br><span style="font-size:0.9em;">Back</span>
+          </button>
         </aside>
       </div>
     </section>
 
-    <!-- ═══════════════════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
          SCREEN 4 — EDIT
-         ═══════════════════════════════════════════════════════ -->
+         ═══════════════════════════════════════════ -->
     <section id="screen-edit" class="screen" aria-label="편집 화면">
       <header class="screen-header">
-        <nav class="step-indicator" aria-label="진행 단계">
+        <nav class="step-indicator">
           <span class="step-dot done"></span>
           <span class="step-dot done"></span>
           <span class="step-dot done"></span>
-          <span class="step-dot active" aria-label="현재 단계: 편집"></span>
+          <span class="step-dot active"></span>
           <span class="step-dot"></span>
         </nav>
-        <h2>តុបតែងរូបថតរបស់អ្នក<br><span style="font-size: 0.9em;">Decorate your photos</span></h2>
+        <h2>តុបតែងរូបថតរបស់អ្នក<br><span style="font-size:0.9em;">Decorate your photos</span></h2>
       </header>
 
-      <!-- PC/Tablet: side-by-side -->
       <div class="edit-body">
         <!-- Left: canvas preview -->
         <div class="edit-preview-container">
@@ -150,27 +224,48 @@
 
         <!-- Right: controls panel -->
         <div class="edit-controls">
-          <!-- Frame Config Panel -->
+
+          <!-- Frame Color -->
           <div class="option-group">
             <label>ស៊ុម / Frame</label>
             <div id="frame-config-list" class="edit-section">
               <div class="option-group">
                 <label>ពណ៌ស៊ុម / Frame Color</label>
                 <div class="color-options">
-                  <button id="color-black"      class="color-swatch active"   data-color="#000000" style="background-color:#000000;" aria-label="검정색"   aria-pressed="true"></button>
-                  <button id="color-white"      class="color-swatch"          data-color="#ffffff" style="background-color:#ffffff;" aria-label="흰색"     aria-pressed="false"></button>
-                  <button id="color-pink"       class="color-swatch"          data-color="#ffb6c1" style="background-color:#ffb6c1;" aria-label="분홍색"   aria-pressed="false"></button>
-                  <button id="color-ivory"      class="color-swatch"          data-color="#fdf6e3" style="background-color:#fdf6e3;" aria-label="아이보리" aria-pressed="false"></button>
-                  <button id="color-mint"       class="color-swatch"          data-color="#aff0d8" style="background-color:#aff0d8;" aria-label="민트"     aria-pressed="false"></button>
-                  <button id="color-lavender"   class="color-swatch"          data-color="#d8b4fe" style="background-color:#d8b4fe;" aria-label="라벤더"   aria-pressed="false"></button>
-                  <button id="color-gray"       class="color-swatch"          data-color="#888899" style="background-color:#888899;" aria-label="회색"     aria-pressed="false"></button>
-                  <button id="color-neon-blue"  class="color-swatch"          data-color="#00d4ff" style="background-color:#00d4ff;" aria-label="네온 블루" aria-pressed="false"></button>
+                  <button id="color-black"    class="color-swatch active" data-color="#000000" style="background:#000000;" aria-label="검정" aria-pressed="true"></button>
+                  <button id="color-white"    class="color-swatch"        data-color="#ffffff" style="background:#ffffff;" aria-label="흰색" aria-pressed="false"></button>
+                  <button id="color-pink"     class="color-swatch"        data-color="#ffb6c1" style="background:#ffb6c1;" aria-label="분홍" aria-pressed="false"></button>
+                  <button id="color-ivory"    class="color-swatch"        data-color="#fdf6e3" style="background:#fdf6e3;" aria-label="아이보리" aria-pressed="false"></button>
+                  <button id="color-mint"     class="color-swatch"        data-color="#aff0d8" style="background:#aff0d8;" aria-label="민트" aria-pressed="false"></button>
+                  <button id="color-lavender" class="color-swatch"        data-color="#d8b4fe" style="background:#d8b4fe;" aria-label="라벤더" aria-pressed="false"></button>
+                  <button id="color-gray"     class="color-swatch"        data-color="#888899" style="background:#888899;" aria-label="회색" aria-pressed="false"></button>
+                  <button id="color-neon"     class="color-swatch"        data-color="#00d4ff" style="background:#00d4ff;" aria-label="네온블루" aria-pressed="false"></button>
+                  <!-- RGB custom color picker -->
+                  <label class="color-swatch color-swatch-picker" title="직접 색상 선택" aria-label="직접 색상 선택">
+                    🎨
+                    <input type="color" id="color-custom" value="#ff6600" aria-label="커스텀 색상">
+                  </label>
                 </div>
               </div>
+
               <div class="option-group">
-                <label>ផ្ទៃខាងក្រោយ & ស្ទីល / Background & Style</label>
+                <label>ផ្ទៃខាងក្រោយ &amp; ស្ទីល / Background &amp; Style</label>
                 <div id="bg-options-list" class="style-options">
-                  <!-- Dynamically populated by app.js -->
+                  <!-- Populated by app.js -->
+                </div>
+              </div>
+
+              <!-- Custom template upload -->
+              <div class="option-group">
+                <label>📤 ផ្ទុកគំរូ / Upload Custom Template</label>
+                <div class="custom-template-area">
+                  <label id="custom-template-label" class="btn-secondary btn-sm upload-label" for="custom-template-input">
+                    📁 ជ្រើសរើសឯកសារ / Choose File
+                  </label>
+                  <input type="file" id="custom-template-input" accept="image/*" style="display:none;" aria-label="커스텀 템플릿 업로드">
+                  <div id="custom-templates-list" class="custom-templates-list">
+                    <!-- Populated from IndexedDB -->
+                  </div>
                 </div>
               </div>
             </div>
@@ -178,11 +273,9 @@
 
           <hr class="section-divider">
 
-          <hr class="section-divider">
-
-          <!-- Image Adjustments Panel -->
+          <!-- Image Adjustments -->
           <div class="option-group">
-            <label>ការកែតម្រូវរូបភាព / Adjustments</label>
+            <label>ការកែតម្រូវ / Adjustments</label>
             <div class="edit-section">
               <div class="slider-group">
                 <label for="adj-brightness">ពន្លឺ / Brightness</label>
@@ -193,7 +286,7 @@
                 <input type="range" id="adj-saturation" min="0" max="100" value="50">
               </div>
               <div class="slider-group">
-                <label for="adj-contrast">កម្រិតពន្លឺ / Contrast</label>
+                <label for="adj-contrast">ពន្លឺ / Contrast</label>
                 <input type="range" id="adj-contrast" min="0" max="100" value="50">
               </div>
             </div>
@@ -205,7 +298,7 @@
           <div class="option-group">
             <label>តម្រង / Filter</label>
             <div id="filter-list" class="edit-section">
-              <!-- Populated dynamically by app.js -->
+              <!-- Populated by app.js -->
             </div>
           </div>
 
@@ -215,74 +308,74 @@
           <div class="option-group">
             <label>ស្ទីកឃ័រ / Sticker</label>
             <div id="sticker-list" class="edit-section">
-              <!-- Populated dynamically by app.js -->
+              <!-- Populated by app.js -->
             </div>
           </div>
 
           <div class="sticker-hint" id="sticker-hint">
-            💡 ចុចពីរដងលើស្ទីកឃ័រដើម្បីបន្ថែមវា។ អូសដើម្បីផ្លាស់ទី។<br>Double-click a sticker to add it. Drag to move.
+            💡 ចុចពីរដងលើស្ទីកឃ័រ / Double-click to add. Drag to move.
           </div>
 
           <div class="button-group">
-            <button id="btn-edit-back" class="btn-secondary" aria-label="촬영 화면으로 이동">← ត្រឡប់ក្រោយ<br><span style="font-size: 0.9em;">Back</span></button>
-            <button id="btn-edit-done" class="btn-primary" aria-label="편집 완료">រួចរាល់ →<br><span style="font-size: 0.9em;">Done</span></button>
+            <button id="btn-edit-back" class="btn-secondary">← ត្រឡប់<br><span style="font-size:0.9em;">Back</span></button>
+            <button id="btn-edit-done" class="btn-primary">រួចរាល់ →<br><span style="font-size:0.9em;">Done</span></button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ═══════════════════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
          SCREEN 5 — RESULT
-         ═══════════════════════════════════════════════════════ -->
+         ═══════════════════════════════════════════ -->
     <section id="screen-result" class="screen" aria-label="결과 화면">
       <header class="screen-header">
-        <nav class="step-indicator" aria-label="진행 단계">
+        <nav class="step-indicator">
           <span class="step-dot done"></span>
           <span class="step-dot done"></span>
           <span class="step-dot done"></span>
           <span class="step-dot done"></span>
-          <span class="step-dot active" aria-label="현재 단계: 완성"></span>
+          <span class="step-dot active"></span>
         </nav>
-        <h2>រួចរាល់! 🎉<br><span style="font-size: 0.9em;">Complete!</span></h2>
+        <h2>រួចរាល់! 🎉<br><span style="font-size:0.9em;">Complete!</span></h2>
       </header>
 
-      <!-- PC/Tablet: side-by-side result layout -->
       <div class="result-body">
-        <!-- Left: preview image -->
         <div class="result-preview">
           <img id="result-image" src="" alt="완성된 인생네컷 사진">
         </div>
 
-        <!-- Right: actions -->
         <div class="result-actions-panel">
-          <p class="result-cta">រូបថតរួចរាល់ហើយ!<br>រក្សាទុក ឬចែករំលែកវា។<br><span style="font-size: 0.9em; opacity: 0.8;">Photos are ready! Save or share them.</span></p>
+          <p class="result-cta">
+            រូបថតរួចរាល់ហើយ!<br>រក្សាទុក ឬចែករំលែកវា។<br>
+            <span style="font-size:0.9em;opacity:0.8;">Photos are ready! Save or share.</span>
+          </p>
 
           <div class="action-buttons">
-            <button id="btn-download" class="btn-primary" aria-label="사진 저장하기">📥 រក្សាទុក<br><span style="font-size: 0.9em;">Save</span></button>
-            <button id="btn-qr"       class="btn-secondary" aria-label="QR 코드 생성">📱 កូដ QR<br><span style="font-size: 0.9em;">QR Code</span></button>
-            <button id="btn-email"    class="btn-secondary" aria-label="이메일로 전송">✉️ អ៊ីមែល<br><span style="font-size: 0.9em;">Email</span></button>
+            <button id="btn-download" class="btn-primary">📥 រក្សាទុក<br><span style="font-size:0.9em;">Save</span></button>
+            <button id="btn-qr"       class="btn-secondary">📱 QR Code<br><span style="font-size:0.9em;">QR Code</span></button>
+            <button id="btn-email"    class="btn-secondary">✉️ អ៊ីមែល<br><span style="font-size:0.9em;">Email</span></button>
           </div>
 
           <!-- QR Code Panel -->
-          <div id="qr-container" class="glass-panel hidden" aria-label="QR 코드 패널">
-            <p>ស្កេនកូដ QR ជាមួយស្មាតហ្វូនរបស់អ្នក<br><span style="font-size: 0.9em;">Scan the QR code with your smartphone</span></p>
-            <div id="qr-code" aria-label="QR 코드"></div>
-            <button id="btn-qr-close" class="btn-close" aria-label="QR 코드 닫기">✕</button>
+          <div id="qr-container" class="glass-panel hidden">
+            <p>ស្កេនកូដ QR ជាមួយស្មាតហ្វូន<br><span style="font-size:0.9em;">Scan QR with your phone</span></p>
+            <div id="qr-code"></div>
+            <button id="btn-qr-close" class="btn-close">✕</button>
           </div>
 
           <!-- Email Panel -->
-          <div id="email-container" class="glass-panel hidden" aria-label="이메일 전송 패널">
-            <p>បញ្ចូលអាសយដ្ឋានអ៊ីមែលរបស់អ្នក<br><span style="font-size: 0.9em;">Enter your email address</span></p>
+          <div id="email-container" class="glass-panel hidden">
+            <p>បញ្ចូលអ៊ីមែលរបស់អ្នក<br><span style="font-size:0.9em;">Enter your email address</span></p>
             <div class="email-form">
-              <input id="email-input" type="email" placeholder="example@email.com" aria-label="이메일 주소 입력" autocomplete="email">
-              <button id="btn-email-send" class="btn-primary" aria-label="이메일 전송">ផ្ញើ<br><span style="font-size: 0.9em;">Send</span></button>
+              <input id="email-input" type="email" placeholder="example@email.com" autocomplete="email">
+              <button id="btn-email-send" class="btn-primary">ផ្ញើ<br><span style="font-size:0.9em;">Send</span></button>
             </div>
-            <button id="btn-email-close" class="btn-close" aria-label="이메일 패널 닫기">✕</button>
+            <button id="btn-email-close" class="btn-close">✕</button>
           </div>
 
-          <div class="button-group" style="margin-top: 16px;">
-            <button id="btn-result-back" class="btn-secondary" aria-label="편집 화면으로 이동">← កែសម្រួល<br><span style="font-size: 0.9em;">Edit</span></button>
-            <button id="btn-restart"     class="btn-secondary" aria-label="처음으로 돌아가기">🏠 ទំព័រដើម<br><span style="font-size: 0.9em;">Home</span></button>
+          <div class="button-group" style="margin-top:16px;">
+            <button id="btn-result-back" class="btn-secondary">← កែសម្រួល<br><span style="font-size:0.9em;">Edit</span></button>
+            <button id="btn-restart"     class="btn-secondary">🏠 ទំព័រដើម<br><span style="font-size:0.9em;">Home</span></button>
           </div>
         </div>
       </div>
@@ -290,7 +383,7 @@
 
   </div><!-- /#app -->
 
-  <!-- ═══ Inline Splash Fade Script ═══ -->
+  <!-- Inline Splash Fade -->
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       var splash = document.getElementById('splash-screen');

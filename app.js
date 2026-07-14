@@ -14,22 +14,49 @@
   // ============================================================
 
   const CONFIG = {
-    countdown: 5,       // 촬영당 카운트다운 초 (첫 컷은 별도로 10초 적용)
-    totalShots: 4,      // 총 촬영 매수
+    countdown: 5,       // 기본 카운트다운 (사용자 선택 가능)
     camera: {
       width:  { ideal: 1920 },
-      height: { ideal: 1080 },
-      facingMode: 'user'
+      height: { ideal: 1080 }
     },
-    // 세로 4컷 전용 레이아웃 설정
+    // 레이아웃 3종 설정
     layouts: {
+      strip4: {
+        canvasWidth:  1200,
+        canvasHeight: 3600,
+        photoWidth:   1080,
+        photoHeight:  760,
+        padding: 60,
+        gap:     30,
+        totalShots: 4
+      },
+      strip3: {
+        canvasWidth:  1200,
+        canvasHeight: 2800,
+        photoWidth:   1080,
+        photoHeight:  780,
+        padding: 70,
+        gap:     30,
+        totalShots: 3
+      },
+      grid22: {
+        canvasWidth:  1200,
+        canvasHeight: 1340,
+        photoWidth:   540,
+        photoHeight:  540,
+        padding: 60,
+        gap:     30,
+        totalShots: 4
+      },
+      // 하위 호환
       strip: {
         canvasWidth:  1200,
         canvasHeight: 3600,
         photoWidth:   1080,
         photoHeight:  760,
         padding: 60,
-        gap:     30
+        gap:     30,
+        totalShots: 4
       }
     },
     captureQuality: 0.95,
@@ -44,23 +71,24 @@
   const state = {
     currentScreen: 'start',
     frame: {
-      layout: 'strip',    // 세로 4컷 고정
+      layout: 'strip4',   // 레이아웃 키 (strip4 / strip3 / grid22)
       color:  '#000000',  // 프레임 배경색
-      bg:     'none',     // 배경 이미지 키
+      bg:     'none',     // 배경 스타일 키
       deco:   'none'      // 데코 이미지 키
     },
     bgImages:   {},
     decoImages: {},
-    photos:          [],   // 캡처된 이미지 Data URL 배열
-    currentShot:      0,   // 현재 촬영 인덱스 (0-3)
-    filter:       'none',  // 선택된 필터 이름
-    adjustments: { brightness: 50, saturation: 50, contrast: 50 }, // 이미지 조정
-    stickers:        [],   // {id, emoji, x, y, size, rotation} 배열
-    loadedPhotos:    [],   // 캡처된 이미지의 HTMLImageElement 배열 (깜빡임 방지용 캐시)
+    photos:          [],
+    currentShot:      0,
+    retakeIndex:     -1,   // 재촬영할 사진 인덱스 (-1: 재촬영 모드 아님)
+    filter:       'none',
+    adjustments: { brightness: 50, saturation: 50, contrast: 50 },
+    stickers:        [],
+    loadedPhotos:    [],
     cameraStream:  null,
     countdownTimer: null,
     selectedSticker: null,
-    pendingStickerEmoji: null,  // 마우스로 따라다니는 배치 대기 스티커
+    pendingStickerEmoji: null,
     composedCanvas:  null,
     isDragging:     false,
     isResizing:     false,
@@ -70,11 +98,20 @@
     stickerIdCounter: 0,
     uploadedImageUrl: null,
     hostedPageUrl:    null,
-    selectedCameraId: null
+    selectedCameraId: null,
+    facingMode: 'user',        // 카메라 방향 (user=전면, environment=후면)
+    timerDuration: 5,          // 사용자 선택 타이머 (초)
+    shootingStarted: false,    // 촬영 시작 버튼 누름 여부
+    instantShootCallback: null // 즉시 촬영 콜백
   };
 
   function getTotalShots() {
-    return 4;
+    const layout = CONFIG.layouts[state.frame.layout] || CONFIG.layouts.strip4;
+    return layout.totalShots || 4;
+  }
+
+  function getLayoutConfig() {
+    return CONFIG.layouts[state.frame.layout] || CONFIG.layouts.strip4;
   }
 
 
@@ -210,7 +247,131 @@
   // === CAMERA MODULE (카메라 모듈) ===
   // ============================================================
 
-  /**
+  // ============================================================
+  // === CUSTOM TEMPLATE (IndexedDB) ===
+  // ============================================================
+
+  const IDB_NAME = 'life4cuts';
+  const IDB_STORE = 'customTemplates';
+  let idbInstance = null;
+
+  function openIDB() {
+    return new Promise((resolve, reject) => {
+      if (idbInstance) { resolve(idbInstance); return; }
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE, { keyPath: 'key' });
+        }
+      };
+      req.onsuccess = e => { idbInstance = e.target.result; resolve(idbInstance); };
+      req.onerror   = e => reject(e.target.error);
+    });
+  }
+
+  async function saveCustomTemplate(key, dataURL, name) {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put({ key, dataURL, name });
+      tx.oncomplete = resolve;
+      tx.onerror = reject;
+    });
+  }
+
+  async function loadCustomTemplatesFromDB() {
+    try {
+      const db = await openIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const req = tx.objectStore(IDB_STORE).getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      });
+    } catch { return []; }
+  }
+
+  async function deleteCustomTemplate(key) {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(key);
+      tx.oncomplete = resolve;
+      tx.onerror = reject;
+    });
+  }
+
+  function addCustomTemplateOption(container, t) {
+    const item = document.createElement('div');
+    item.className = 'style-option-item custom-template-option' + (state.frame.bg === t.key ? ' active' : '');
+    item.dataset.bg = t.key;
+
+    const img = document.createElement('img');
+    img.src = t.dataURL;
+    img.style.cssText = 'width:60px;height:60px;object-fit:cover;border-radius:4px;';
+
+    const lbl = document.createElement('span');
+    lbl.textContent = t.name || '커스텀';
+
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '✕';
+    delBtn.className = 'custom-template-del';
+    delBtn.title = '삭제';
+    delBtn.onclick = async (e) => {
+      e.stopPropagation();
+      await deleteCustomTemplate(t.key);
+      delete state.bgImages[t.key];
+      if (state.frame.bg === t.key) state.frame.bg = 'none';
+      item.remove();
+      renderEditCanvas();
+    };
+
+    item.appendChild(img);
+    item.appendChild(lbl);
+    item.appendChild(delBtn);
+    item.addEventListener('click', () => {
+      $$('.style-option-item').forEach(el => el.classList.remove('active'));
+      item.classList.add('active');
+      state.frame.bg = t.key;
+      // 이미지 캐시에 추가
+      if (!state.bgImages[t.key]) {
+        const bgImg = new Image();
+        bgImg.src = t.dataURL;
+        state.bgImages[t.key] = bgImg;
+      }
+      renderEditCanvas();
+    });
+    container.appendChild(item);
+  }
+
+  function setupCustomTemplateUpload() {
+    const input = $('#custom-template-input');
+    if (!input) return;
+    input.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const dataURL = ev.target.result;
+        const key = 'custom_' + Date.now();
+        const name = file.name.replace(/\.[^.]+$/, '');
+        await saveCustomTemplate(key, dataURL, name);
+        const bgImg = new Image();
+        bgImg.src = dataURL;
+        state.bgImages[key] = bgImg;
+        // BG 옵션 목록 새로 고침
+        renderBgOptions();
+        // 바로 선택
+        state.frame.bg = key;
+        renderEditCanvas();
+      };
+      reader.readAsDataURL(file);
+      input.value = '';
+    });
+  }
+
+    /**
    * 카메라 초기화
    * getUserMedia로 카메라 스트림을 가져와 비디오 요소에 연결합니다.
    */
@@ -242,7 +403,7 @@
       if (state.selectedCameraId) {
         constraints.video.deviceId = { exact: state.selectedCameraId };
       } else {
-        constraints.video.facingMode = CONFIG.camera.facingMode;
+        constraints.video.facingMode = state.facingMode || 'user';
       }
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -468,6 +629,26 @@
     const countdownEl = $('#countdown-number');
     if (!countdownEl) return;
 
+    // 즉시 촬영 버튼 표시
+    const shootNowBtn = $('#btn-shoot-now');
+    if (shootNowBtn) {
+      shootNowBtn.classList.remove('hidden');
+    }
+
+    // 즉시 촬영 콜백 저장
+    state.instantShootCallback = () => {
+      clearInterval(state.countdownTimer);
+      state.countdownTimer = null;
+      if (shootNowBtn) shootNowBtn.classList.add('hidden');
+      if (countdownEl) {
+        countdownEl.style.display = 'none';
+        countdownEl.classList.remove('visible', 'countdown-pop');
+      }
+      triggerFlash();
+      playSound('shutter');
+      if (onComplete) onComplete();
+    };
+
     let remaining = duration;
     countdownEl.textContent = remaining;
     countdownEl.style.display = 'flex';
@@ -510,6 +691,11 @@
         // 카운트다운 완료
         clearInterval(state.countdownTimer);
         state.countdownTimer = null;
+        state.instantShootCallback = null;
+
+        // 즉시 촬영 버튼 숨기기
+        const shootNowBtn2 = $('#btn-shoot-now');
+        if (shootNowBtn2) shootNowBtn2.classList.add('hidden');
 
         countdownEl.style.display = 'none';
         countdownEl.classList.remove('visible', 'countdown-pop');
@@ -546,12 +732,16 @@
       clearInterval(state.countdownTimer);
       state.countdownTimer = null;
     }
+    state.instantShootCallback = null;
 
     const countdownEl = $('#countdown-number');
     if (countdownEl) {
       countdownEl.style.display = 'none';
       countdownEl.classList.remove('visible', 'countdown-pop');
     }
+
+    const shootNowBtn = $('#btn-shoot-now');
+    if (shootNowBtn) shootNowBtn.classList.add('hidden');
   }
 
 
@@ -1177,13 +1367,8 @@
 
     const ctx = canvas.getContext('2d');
 
-    // 배경색 (프레임 색상)
-    if (frameConfig.bg !== 'none' && state.bgImages && state.bgImages[frameConfig.bg]) {
-      ctx.drawImage(state.bgImages[frameConfig.bg], 0, 0, canvas.width, canvas.height);
-    } else {
-      ctx.fillStyle = frameConfig.color;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
+    // 배경 설정
+    drawBackground(ctx, canvas.width, canvas.height, frameConfig.bg, frameConfig.color);
 
     // 사진 위치 계산
     const positions = getPhotoPositions(frameConfig.layout, layout);
@@ -1257,22 +1442,39 @@
    */
   function getPhotoPositions(layoutName, layout) {
     const positions = [];
-    const total = getTotalShots();
+    const total = layout.totalShots || getTotalShots();
+    const pw = layout.photoWidth;
+    const ph = layout.photoHeight;
+    const pad = layout.padding;
+    const gap = layout.gap;
 
-    // 세로 4컷(strip) 전용
-    let pw = layout.photoWidth;
-    let ph = layout.photoHeight;
-    let pad = layout.padding;
-    let gap = layout.gap;
-
-    const startX = (layout.canvasWidth - pw) / 2;
-    for (let i = 0; i < total; i++) {
-      positions.push({
-        x: startX,
-        y: pad + i * (ph + gap),
-        width:  pw,
-        height: ph
-      });
+    if (layoutName === 'grid22') {
+      // 2×2 격자 레이아웃
+      const cols = 2;
+      const rows = 2;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const idx = r * cols + c;
+          if (idx >= total) break;
+          positions.push({
+            x: pad + c * (pw + gap),
+            y: pad + r * (ph + gap),
+            width:  pw,
+            height: ph
+          });
+        }
+      }
+    } else {
+      // 세로 스트립 (strip4 / strip3)
+      const startX = (layout.canvasWidth - pw) / 2;
+      for (let i = 0; i < total; i++) {
+        positions.push({
+          x: startX,
+          y: pad + i * (ph + gap),
+          width:  pw,
+          height: ph
+        });
+      }
     }
 
     return positions;
@@ -1362,7 +1564,194 @@
     }
   }
 
+  // ============================================================
+  // === BACKGROUND STYLES MODULE (배경 스타일 모듈) ===
+  // ============================================================
+
   /**
+   * 배경 스타일 정의 목록
+   */
+  const BG_STYLES = [
+    { key: 'none',           label: 'ដើម\nSolid',         thumb: null },
+    { key: 'gradient_pink',  label: 'ផ្កា\nPink Gradient', thumb: null },
+    { key: 'gradient_blue',  label: 'ពណ៌ខៀវ\nBlue Gradient', thumb: null },
+    { key: 'gradient_gold',  label: 'មាស\nGold Glam',     thumb: null },
+    { key: 'film_noir',      label: 'ហ្វីល\nFilm Noir',   thumb: null },
+    { key: 'pastel_bloom',   label: 'ផ្ការ\nPastel Bloom', thumb: null },
+    { key: 'minimal_dots',   label: 'ចំណុច\nMinimal Dots', thumb: null },
+    { key: 'vert4_bg2',      label: 'Template 2',          thumb: null }
+  ];
+
+  /**
+   * 배경 스타일을 Canvas에 렌더링합니다.
+   */
+  function drawBackground(ctx, w, h, bgKey, solidColor) {
+    ctx.save();
+    switch (bgKey) {
+      case 'gradient_pink': {
+        const grd = ctx.createLinearGradient(0, 0, w, h);
+        grd.addColorStop(0, '#ffd6e7');
+        grd.addColorStop(0.4, '#ffb3d9');
+        grd.addColorStop(1, '#c9a0dc');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+        // 장식용 원형 흐림
+        const rg = ctx.createRadialGradient(w * 0.8, h * 0.1, 0, w * 0.8, h * 0.1, w * 0.6);
+        rg.addColorStop(0, 'rgba(255,255,255,0.18)');
+        rg.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, w, h);
+        break;
+      }
+      case 'gradient_blue': {
+        const grd = ctx.createLinearGradient(0, 0, w * 0.3, h);
+        grd.addColorStop(0, '#a8edea');
+        grd.addColorStop(0.5, '#7ec8e3');
+        grd.addColorStop(1, '#3a7bd5');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+        break;
+      }
+      case 'gradient_gold': {
+        const grd = ctx.createLinearGradient(0, 0, w, h);
+        grd.addColorStop(0, '#f7e7c1');
+        grd.addColorStop(0.5, '#f5c842');
+        grd.addColorStop(1, '#c8860a');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+        // 글리터 점 효과
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        for (let i = 0; i < 200; i++) {
+          const px = Math.random() * w;
+          const py = Math.random() * h;
+          const pr = Math.random() * 6 + 1;
+          ctx.beginPath();
+          ctx.arc(px, py, pr, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
+      case 'film_noir': {
+        // 어두운 필름 감성
+        const grd = ctx.createLinearGradient(0, 0, 0, h);
+        grd.addColorStop(0, '#1a1a2e');
+        grd.addColorStop(0.5, '#16213e');
+        grd.addColorStop(1, '#0f3460');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+        // 필름 스트립 사이드 바
+        ctx.fillStyle = '#111122';
+        ctx.fillRect(0, 0, 36, h);
+        ctx.fillRect(w - 36, 0, 36, h);
+        // 스프로켓 구멍
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        for (let y = 40; y < h; y += 70) {
+          drawRoundedRect(ctx, 6, y, 24, 18, 4); ctx.fill();
+          drawRoundedRect(ctx, w - 30, y, 24, 18, 4); ctx.fill();
+        }
+        break;
+      }
+      case 'pastel_bloom': {
+        // 파스텔 꽃 테마
+        ctx.fillStyle = '#fff5f5';
+        ctx.fillRect(0, 0, w, h);
+        const flowers = [
+          {x: 0.1, y: 0.05, r: 120, c: 'rgba(255,182,193,0.45)'},
+          {x: 0.9, y: 0.05, r: 140, c: 'rgba(255,200,221,0.4)'},
+          {x: 0.05, y: 0.5, r: 100, c: 'rgba(216,180,254,0.35)'},
+          {x: 0.95, y: 0.5, r: 110, c: 'rgba(175,240,216,0.35)'},
+          {x: 0.1, y: 0.95, r: 130, c: 'rgba(255,182,193,0.4)'},
+          {x: 0.9, y: 0.95, r: 150, c: 'rgba(255,220,150,0.35)'},
+          {x: 0.5, y: 0.1, r:  90, c: 'rgba(200,220,255,0.3)'},
+          {x: 0.5, y: 0.9, r:  95, c: 'rgba(255,180,240,0.3)'}
+        ];
+        flowers.forEach(f => {
+          const rg = ctx.createRadialGradient(f.x*w, f.y*h, 0, f.x*w, f.y*h, f.r);
+          rg.addColorStop(0, f.c);
+          rg.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = rg;
+          ctx.fillRect(0, 0, w, h);
+        });
+        break;
+      }
+      case 'minimal_dots': {
+        ctx.fillStyle = '#fafafa';
+        ctx.fillRect(0, 0, w, h);
+        const dotSpacing = 48;
+        ctx.fillStyle = 'rgba(100,120,180,0.18)';
+        for (let dx = dotSpacing / 2; dx < w; dx += dotSpacing) {
+          for (let dy = dotSpacing / 2; dy < h; dy += dotSpacing) {
+            ctx.beginPath();
+            ctx.arc(dx, dy, 5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        break;
+      }
+      case 'vert4_bg2':
+        if (state.bgImages && state.bgImages['vert4_bg2']) {
+          ctx.drawImage(state.bgImages['vert4_bg2'], 0, 0, w, h);
+        } else {
+          ctx.fillStyle = solidColor || '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+        }
+        break;
+      default:
+        // Custom uploaded template
+        if (bgKey && bgKey.startsWith('custom_') && state.bgImages && state.bgImages[bgKey]) {
+          ctx.drawImage(state.bgImages[bgKey], 0, 0, w, h);
+        } else if (bgKey !== 'none' && state.bgImages && state.bgImages[bgKey]) {
+          ctx.drawImage(state.bgImages[bgKey], 0, 0, w, h);
+        } else {
+          ctx.fillStyle = solidColor || '#000000';
+          ctx.fillRect(0, 0, w, h);
+        }
+    }
+    ctx.restore();
+  }
+
+  /**
+   * 배경 스타일 목록을 렌더링합니다.
+   */
+  function renderBgOptions() {
+    const container = $('#bg-options-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    BG_STYLES.forEach(style => {
+      const item = document.createElement('div');
+      item.className = 'style-option-item' + (state.frame.bg === style.key ? ' active' : '');
+      item.dataset.bg = style.key;
+
+      // 썸네일 캔버스
+      const thumb = document.createElement('canvas');
+      thumb.width  = 60;
+      thumb.height = 60;
+      drawBackground(thumb.getContext('2d'), 60, 60, style.key, state.frame.color);
+
+      const lbl = document.createElement('span');
+      lbl.innerHTML = style.label.replace('\n', '<br>');
+
+      item.appendChild(thumb);
+      item.appendChild(lbl);
+      item.addEventListener('click', () => {
+        $$('.style-option-item').forEach(el => el.classList.remove('active'));
+        item.classList.add('active');
+        state.frame.bg = style.key;
+        renderEditCanvas();
+      });
+      container.appendChild(item);
+    });
+
+    // 커스텀 템플릿들 (IndexedDB에서 로드)
+    loadCustomTemplatesFromDB().then(templates => {
+      templates.forEach(t => {
+        addCustomTemplateOption(container, t);
+      });
+    });
+  }
+
+    /**
    * 색상의 밝기를 계산합니다.
    * @param {string} hexColor - 16진수 색상 문자열
    * @returns {number} 0-255
@@ -1384,13 +1773,26 @@
    */
   function drawDateWatermark(ctx, w, h, bgColor) {
     const date = getFormattedDate();
-    const textColor = '#000000'; // 강제 검은색
+    // 배경 밝기에 따라 텍스트 색상 자동 결정
+    let textColor = '#000000';
+    if (bgColor && bgColor.startsWith('#')) {
+      const brightness = getColorBrightness(bgColor);
+      textColor = brightness < 100 ? '#ffffff' : '#000000';
+    }
 
+    ctx.save();
     ctx.fillStyle = textColor;
-    ctx.font = '900 70px "Outfit", "Pretendard", sans-serif';
     ctx.textAlign = 'center';
+
+    // 브랜드 텍스트
+    ctx.font = '700 48px "Outfit", "Pretendard", sans-serif';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(date, w / 2, h - 15);
+    ctx.fillText('Life Four Cuts', w / 2, h - 68);
+
+    // 날짜 텍스트
+    ctx.font = '900 70px "Outfit", "Pretendard", sans-serif';
+    ctx.fillText(date, w / 2, h - 10);
+    ctx.restore();
   }
 
 
@@ -1415,13 +1817,7 @@
     const ctx = canvas.getContext('2d');
 
     // 1) 캔버스 배경 설정
-    if (state.frame.bg !== 'none' && state.bgImages && state.bgImages[state.frame.bg]) {
-      const bgImg = state.bgImages[state.frame.bg];
-      ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-    } else {
-      ctx.fillStyle = state.frame.color;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
+    drawBackground(ctx, canvas.width, canvas.height, state.frame.bg, state.frame.color);
 
     // 사진 위치
     const positions = getPhotoPositions(state.frame.layout, layout);
@@ -1848,11 +2244,73 @@
    * 프레임 선택 화면 초기화 (이제 레이아웃만 선택)
    */
   function initFrameScreen() {
-    // 세로 4컷 고정 – 레이아웃 선택 없음
-    state.frame.layout = 'strip';
+    // 레이아웃 선택 카드 이벤트
+    $$('.layout-card').forEach(card => {
+      card.addEventListener('click', () => {
+        $$('.layout-card').forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
+        card.classList.add('active');
+        card.setAttribute('aria-pressed', 'true');
+        state.frame.layout = card.dataset.layout;
+        renderFramePreview();
+      });
+    });
 
-    // 진입 시 초기 미리보기 렌더링
+    // 현재 선택된 레이아웃 카드 활성화
+    const activeCard = $(`.layout-card[data-layout="${state.frame.layout}"]`);
+    if (activeCard) {
+      $$('.layout-card').forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed','false'); });
+      activeCard.classList.add('active');
+      activeCard.setAttribute('aria-pressed','true');
+    }
+
+    // 규격 다운로드 버튼
+    const dlBtn = $('#btn-download-template');
+    if (dlBtn) {
+      dlBtn.onclick = downloadTemplateBlank;
+    }
+
     renderFramePreview();
+  }
+
+  /**
+   * 현재 레이아웃에 맞는 빈 규격 PNG 템플릿 다운로드
+   */
+  function downloadTemplateBlank() {
+    const layout = getLayoutConfig();
+    const canvas = document.createElement('canvas');
+    canvas.width  = layout.canvasWidth;
+    canvas.height = layout.canvasHeight;
+    const ctx = canvas.getContext('2d');
+
+    // 흰 배경
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 사진 슬롯 표시 (투명 구멍 효과)
+    const positions = getPhotoPositions(state.frame.layout, layout);
+    ctx.fillStyle = 'rgba(200,200,200,0.5)';
+    ctx.strokeStyle = '#999999';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([16, 8]);
+    positions.forEach(pos => {
+      ctx.fillRect(pos.x, pos.y, pos.width, pos.height);
+      ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+    });
+    ctx.setLineDash([]);
+
+    // 가이드 텍스트
+    ctx.fillStyle = '#888888';
+    ctx.font = '48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    positions.forEach((pos, i) => {
+      ctx.fillText(`Photo ${i + 1}`, pos.x + pos.width / 2, pos.y + pos.height / 2);
+    });
+
+    const link = document.createElement('a');
+    link.download = `life4cuts_template_${state.frame.layout}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
   }
 
   /**
@@ -1862,8 +2320,11 @@
     // 상태 초기화
     state.adjustments = { brightness: 50, saturation: 50, contrast: 50 };
     state.currentShot = 0;
+    state.retakeIndex = -1;
     state.photos = [];
     state.loadedPhotos = [];
+    state.shootingStarted = false;
+    state.instantShootCallback = null;
 
     // 촬영 표시기 업데이트
     updateShotIndicator();
@@ -1871,18 +2332,66 @@
     const select = $('#camera-select');
     if (select) select.disabled = false;
 
-    // 우측 레이아웃 프레임 썸네일 캔버스 초기화 (빈 슬롯 상태로 그리기)
+    // shot-indicator에 총 컷 수 반영
+    const totalEl = document.querySelector('.shot-total');
+    if (totalEl) totalEl.textContent = ` / ${getTotalShots()}`;
+
+    // 카메라 전환 버튼
+    const flipBtn = $('#btn-flip-camera');
+    if (flipBtn) {
+      flipBtn.onclick = async () => {
+        state.facingMode = state.facingMode === 'user' ? 'environment' : 'user';
+        state.selectedCameraId = null;
+        await initCamera();
+      };
+    }
+
+    // 타이머 옵션 버튼
+    $$('.timer-btn').forEach(btn => {
+      btn.classList.remove('active');
+      if (parseInt(btn.dataset.seconds) === state.timerDuration) {
+        btn.classList.add('active');
+      }
+      btn.onclick = () => {
+        $$('.timer-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.timerDuration = parseInt(btn.dataset.seconds);
+      };
+    });
+
+    // 즉시 촬영 버튼 숨기기
+    const shootNowBtn = $('#btn-shoot-now');
+    if (shootNowBtn) shootNowBtn.classList.add('hidden');
+
+    // 촬영 시작 버튼 표시
+    const startBtn = $('#btn-start-shooting');
+    if (startBtn) {
+      startBtn.classList.remove('hidden');
+      startBtn.onclick = () => {
+        if (state.shootingStarted) return;
+        state.shootingStarted = true;
+        startBtn.classList.add('hidden');
+        // 타이머 옵션 잠금
+        $$('.timer-btn').forEach(b => b.disabled = true);
+        startShootingSequence();
+      };
+    }
+
+    // 즉시 촬영 버튼 핸들러
+    const shootNowBtnEl = $('#btn-shoot-now');
+    if (shootNowBtnEl) {
+      shootNowBtnEl.onclick = () => {
+        if (state.instantShootCallback) {
+          state.instantShootCallback();
+        }
+      };
+    }
+
+    // 우측 캔버스 초기화
     renderShootPreviewCanvas();
 
     // 카메라 시작
     await initCamera();
-
-    // 1.5초 후 첫 카운트다운 시작 (카메라 로딩 대기 시간 고려)
-    setTimeout(() => {
-      if (state.currentScreen === 'shoot') {
-        startShootingSequence();
-      }
-    }, 1500);
   }
 
   /**
@@ -1893,20 +2402,51 @@
     if (select) select.disabled = true;
 
     const totalShots = getTotalShots();
-    
+
+    // 재촬영 모드: 특정 인덱스만 다시 찍기
+    if (state.retakeIndex >= 0) {
+      const idx = state.retakeIndex;
+      updateShotIndicator(idx + 1);
+
+      const poseInstruction = $('#pose-instruction');
+      if (poseInstruction) poseInstruction.classList.remove('hidden');
+
+      startCountdown(state.timerDuration, () => {
+        if (poseInstruction) poseInstruction.classList.add('hidden');
+
+        const photoURL = captureFrame();
+        if (photoURL) {
+          // 기존 사진 교체
+          state.photos[idx] = photoURL;
+          const img = new Image();
+          img.src = photoURL;
+          state.loadedPhotos[idx] = img;
+          animatePhotoToSidebar(idx, photoURL);
+        }
+
+        state.retakeIndex = -1;
+        // 타이머 버튼 잠금 해제
+        $$('.timer-btn').forEach(b => b.disabled = false);
+        const startBtn = $('#btn-start-shooting');
+        if (startBtn) startBtn.classList.add('hidden');
+
+        // 잠시 후 편집화면으로
+        setTimeout(() => {
+          if (state.currentScreen === 'shoot') showScreen('edit');
+        }, 1800);
+      });
+      return;
+    }
+
     if (state.currentShot >= totalShots) {
-      // 모든 촬영 완료 → 1초 후 편집 화면으로 이동
-      setTimeout(() => {
-        showScreen('edit');
-      }, 1000);
+      setTimeout(() => showScreen('edit'), 1000);
       return;
     }
 
     updateShotIndicator();
 
-    // 첫번째 컷 촬영 전에는 10초의 대기시간을 부여하고 안내문구 표시
     const isFirstShot = (state.currentShot === 0);
-    const duration = isFirstShot ? 10 : CONFIG.countdown;
+    const duration = state.timerDuration;
 
     const poseInstruction = $('#pose-instruction');
     if (isFirstShot && poseInstruction) {
@@ -1914,15 +2454,10 @@
     }
 
     startCountdown(duration, () => {
-      // 카운트다운 완료 시 안내 문구 숨김
-      if (poseInstruction) {
-        poseInstruction.classList.add('hidden');
-      }
+      if (poseInstruction) poseInstruction.classList.add('hidden');
 
-      // 프레임 캡처
       const photoURL = captureFrame();
       if (photoURL) {
-        // 날아가는 모션 효과와 함께 우측 슬롯에 임시 배치
         animatePhotoToSidebar(state.currentShot, photoURL);
       }
 
@@ -1930,34 +2465,51 @@
       updateShotIndicator();
 
       if (state.currentShot < totalShots) {
-        // 2초 후 다음 촬영 (비행 모션 시간 0.9초를 감안하여 다음 컷 딜레이 여유 부여)
         setTimeout(() => {
-          if (state.currentScreen === 'shoot') {
-            startShootingSequence();
-          }
+          if (state.currentScreen === 'shoot') startShootingSequence();
         }, 2200);
       } else {
-        // 모든 촬영 완료 → 편집 화면으로 1.8초 뒤 전환
+        // 촬영 완료 → 재촬영 말풍선 표시 후 편집화면 이동
         setTimeout(() => {
           if (state.currentScreen === 'shoot') {
-            showScreen('edit');
+            showRetakeTooltip();
+            setTimeout(() => {
+              if (state.currentScreen === 'shoot') showScreen('edit');
+            }, 3000);
           }
-        }, 1800);
+        }, 1200);
       }
     });
   }
 
   /**
+   * 재촬영 안내 말풍선 표시
+   */
+  function showRetakeTooltip() {
+    const tooltip = $('#retake-tooltip');
+    if (!tooltip) return;
+    tooltip.classList.remove('hidden');
+    const closeBtn = $('#btn-retake-tooltip-close');
+    if (closeBtn) {
+      closeBtn.onclick = () => tooltip.classList.add('hidden');
+    }
+    setTimeout(() => tooltip.classList.add('hidden'), 5000);
+  }
+
+  /**
    * 촬영 표시기를 업데이트합니다.
    */
-  function updateShotIndicator() {
-    const indicator = $('#shot-indicator');
+  function updateShotIndicator(overrideShot) {
+    const currentEl = document.querySelector('.shot-current');
+    const totalEl   = document.querySelector('.shot-total');
     const totalShots = getTotalShots();
-    
-    if (indicator) {
-      const current = Math.min(state.currentShot + 1, totalShots);
-      indicator.textContent = `${current} / ${totalShots}`;
-    }
+
+    const current = overrideShot !== undefined
+      ? overrideShot
+      : Math.min(state.currentShot + 1, totalShots);
+
+    if (currentEl) currentEl.textContent = current;
+    if (totalEl) totalEl.textContent = ` / ${totalShots}`;
   }
 
   /**
@@ -2115,6 +2667,12 @@
       editControls.scrollTop = 0;
     }
 
+    // 배경 스타일 옵션 렌더링
+    renderBgOptions();
+
+    // 커스텀 템플릿 업로드 설정
+    setupCustomTemplateUpload();
+
     // 필터 및 기타 상태 초기화
     state.filter = 'none';
     state.stickers = [];
@@ -2157,8 +2715,7 @@
       }
     });
 
-    // 배경 선택 UI 빌드 및 동적 템플릿 바인딩
-    updateBgOptionsUI();
+    // 배경 선택 UI (renderBgOptions()가 상단에서 이미 호출됨)
 
     // 합성 미리보기 렌더링
     await renderEditCanvas();
