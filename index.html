@@ -99,9 +99,15 @@
 
           <!-- Template download -->
           <div class="option-group">
+            <div style="position:relative;">
             <button id="btn-download-template" class="btn-secondary btn-sm">
               📐 규격 다운로드<br><small>Download Template</small>
             </button>
+            <div id="template-balloon" style="position:absolute; top: -110px; left: 0; right: 0; background: #fff; border: 2px solid #333; border-radius: 8px; padding: 12px; font-size: 12px; color: #333; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 10;">
+              <button onclick="this.parentElement.style.display='none'" style="position:absolute; top:2px; right:6px; border:none; background:none; font-size:16px; cursor:pointer;">&times;</button>
+              규격을 다운받아 형태에 맞게 꾸미고 규격 레이어를 제거한 후 배경이 투명한 png 파일로 저장한 후 <b>📤 Upload Custom Template</b>에 업로드해 커스터마이징 프레임 스타일을 적용할 수 있습니다.
+            </div></div>
+          </div>
           </div>
 
           <ul class="frame-info-list">
@@ -196,6 +202,11 @@
           </button>
           <button id="btn-shoot-back" class="btn-secondary" aria-label="이전 화면">
             ← ត្រឡប់<br><span style="font-size:0.9em;">Back</span>
+          </button>
+          
+          <!-- Next button (shown after all shots are complete) -->
+          <button id="btn-shoot-next" class="btn-primary hidden" aria-label="다음 화면">
+            បន្ទាប់ →<br><span style="font-size:0.9em;">Next</span>
           </button>
         </aside>
       </div>

@@ -1690,14 +1690,16 @@
       }
       case 'vert4_bg1':
       case 'vert4_bg2':
-        ctx.fillStyle = solidColor || '#ffffff';
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = solidColor || state.frame.color || '#ffffff';
         ctx.fillRect(0, 0, w, h);
         if (!skipOverlay && state.bgImages && state.bgImages[bgKey]) {
           ctx.drawImage(state.bgImages[bgKey], 0, 0, w, h);
         }
         break;
       default:
-        ctx.fillStyle = solidColor || '#000000';
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = solidColor || state.frame.color || '#000000';
         ctx.fillRect(0, 0, w, h);
         if (!skipOverlay) {
           if (bgKey && bgKey.startsWith('custom_') && state.bgImages && state.bgImages[bgKey]) {
@@ -1719,6 +1721,10 @@
     container.innerHTML = '';
 
     BG_STYLES.forEach(style => {
+      // Filter templates based on layout
+      if (state.frame.layout !== 'strip' && style.key.startsWith('vert4_')) return;
+      if (state.frame.layout === 'strip' && !style.key.startsWith('vert4_') && style.key !== 'none') return;
+      
       const item = document.createElement('div');
       item.className = 'style-option-item' + (state.frame.bg === style.key ? ' active' : '');
       item.dataset.bg = style.key;
@@ -1880,7 +1886,10 @@
     renderStickersOnCanvas(ctx, state.stickers, canvas.width, canvas.height, true);
 
     // 날짜 워터마크
-    drawDateWatermark(ctx, canvas.width, canvas.height, state.frame.color);
+    const watermarkToggle = document.getElementById('toggle-watermark');
+    if (!watermarkToggle || watermarkToggle.checked) {
+      drawDateWatermark(ctx, canvas.width, canvas.height, state.frame.color);
+    }
   }
 
 
@@ -1953,7 +1962,10 @@
     }
 
     // 날짜 워터마크
-    drawDateWatermark(ctx, canvas.width, canvas.height, state.frame.color);
+    const watermarkToggle = document.getElementById('toggle-watermark');
+    if (!watermarkToggle || watermarkToggle.checked) {
+      drawDateWatermark(ctx, canvas.width, canvas.height, state.frame.color);
+    }
   }
 
   // 이미지 미리 로드
@@ -1962,12 +1974,12 @@
       { key: 'bg1', path: 'assets/background_01.png' },
       { key: 'bg2', path: 'assets/background_02.png' },
       { key: 'bg3', path: 'assets/background_03.png' },
-      { key: 'vert4_bg1', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784012757/vert4_template_deco_01_scqvmr.png' },
+      { key: 'vert4_bg1', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784012757/Template 1_scqvmr.png' },
       { key: 'vert4_bg2', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784008121/vert4_template_deco_02_gxvmmn.png' }
     ];
     
     const decos = [
-      { key: 'vert4_deco1', path: 'assets/vert4_template_deco_01.png' },
+      { key: 'vert4_deco1', path: 'assets/Template 1.png' },
       { key: 'vert4_deco2', path: 'assets/vert4_template_deco_02.png' }
     ];
 
