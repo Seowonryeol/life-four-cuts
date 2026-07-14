@@ -1962,8 +1962,8 @@
       { key: 'bg1', path: 'assets/background_01.png' },
       { key: 'bg2', path: 'assets/background_02.png' },
       { key: 'bg3', path: 'assets/background_03.png' },
-      { key: 'vert4_bg1', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784008120/vert4_template_deco_01_wq4jtw.png' },
-      { key: 'vert4_bg2', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784008119/vert4_template_02_phgfmj.png' }
+      { key: 'vert4_bg1', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784012757/vert4_template_deco_01_scqvmr.png' },
+      { key: 'vert4_bg2', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784008121/vert4_template_deco_02_gxvmmn.png' }
     ];
     
     const decos = [
@@ -2881,17 +2881,13 @@
     });
 
     // --- 전체 화면 시도 (첫 터치 시) ---
-    let fullscreenAttempted = false;
+    // let fullscreenAttempted = false; removed
     document.addEventListener('click', () => {
       if (fullscreenAttempted) return;
-      fullscreenAttempted = true;
+      // fullscreenAttempted = true; removed
 
       const el = document.documentElement;
-      if (el.requestFullscreen) {
-        el.requestFullscreen().catch(() => { /* 무시 */ });
-      } else if (el.webkitRequestFullscreen) {
-        el.webkitRequestFullscreen();
-      }
+      // Fullscreen auto-transition removed per user request.
 
       // AudioContext 초기화 (사용자 제스처 필요)
       getAudioContext();
