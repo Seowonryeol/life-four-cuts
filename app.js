@@ -388,47 +388,58 @@
       return;
     }
 
-    // 기존 스트림이 남아있다면 정지
+    // 기존 스트림이 남아있다면 정지 후 OS 해제 대기
     stopCamera();
+    await new Promise(r => setTimeout(r, 300));
 
-    try {
-      const constraints = {
-        video: {
-          width:      CONFIG.camera.width,
-          height:     CONFIG.camera.height
-        },
-        audio: false
-      };
+    // PC vs 모바일 구분 (facingMode는 PC 웹캠에서 AbortError 유발)
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-      if (state.selectedCameraId) {
-        constraints.video.deviceId = { exact: state.selectedCameraId };
+    // 시도할 constraints 목록 (우선순위 순)
+    const constraintCandidates = [];
+    if (state.selectedCameraId) {
+      constraintCandidates.push({ video: { deviceId: { exact: state.selectedCameraId } }, audio: false });
+      constraintCandidates.push({ video: { deviceId: state.selectedCameraId }, audio: false });
+    } else if (isMobile) {
+      const facing = state.facingMode || 'user';
+      constraintCandidates.push({ video: { width: CONFIG.camera.width, height: CONFIG.camera.height, facingMode: facing }, audio: false });
+      constraintCandidates.push({ video: { facingMode: facing }, audio: false });
+    } else {
+      // PC: facingMode 없이 요청
+      constraintCandidates.push({ video: { width: CONFIG.camera.width, height: CONFIG.camera.height }, audio: false });
+      constraintCandidates.push({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    }
+    // 최후 수단
+    constraintCandidates.push({ video: true, audio: false });
+
+    let stream = null;
+    let lastError = null;
+    for (const c of constraintCandidates) {
+      try {
+        console.log('[camera] trying:', JSON.stringify(c.video));
+        stream = await navigator.mediaDevices.getUserMedia(c);
+        break;
+      } catch (e) {
+        console.warn('[camera] failed:', e.name, e.message);
+        lastError = e;
+        if (e.name === 'NotAllowedError' || e.name === 'SecurityError') break;
+        await new Promise(r => setTimeout(r, 200));
+      }
+    }
+
+    if (!stream) {
+      console.error('카메라 최종 실패:', lastError);
+      const isNotAllowed = lastError && (lastError.name === 'NotAllowedError' || lastError.name === 'SecurityError');
+      const isNotFound   = lastError && (lastError.name === 'NotFoundError'   || lastError.name === 'DevicesNotFoundError');
+      let msg;
+      if (isNotAllowed) {
+        msg = '카메라 접근이 거부되었습니다.\n브라우저 주소창 옆 자물쇠 아이콘 → 카메라 → 허용 후 새로고침해 주세요.';
+      } else if (isNotFound) {
+        msg = '카메라를 찾을 수 없습니다.\n웹캠이 PC에 연결되어 있는지 확인해 주세요.';
       } else {
-        constraints.video.facingMode = state.facingMode || 'user';
+        const n = lastError ? lastError.name : 'Unknown';
+        msg = '카메라를 시작할 수 없습니다 (' + n + ').\n\nZoom, OBS 등 다른 프로그램이 카메라를 점유 중이라면 종료 후 [다시 연결] 버튼을 눌러주세요.';
       }
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      state.cameraStream = stream;
-
-      const video = $('#camera-preview');
-      if (video) {
-        video.srcObject = stream;
-        // iOS Safari를 위한 속성 설정
-        video.setAttribute('playsinline', '');
-        video.setAttribute('autoplay', '');
-        video.muted = true;
-
-        await video.play();
-      }
-
-      // 카메라 디바이스 목록 갱신
-      await populateCameraDevices();
-    } catch (error) {
-      console.error('카메라 초기화 실패:', error);
-      const isNotAllowed = error.name === 'NotAllowedError' || error.name === 'SecurityError';
-      const msg = isNotAllowed
-        ? '카메라 접근이 거부되었거나 화면 오버레이(필터, 팝업 등)가 실행 중입니다.\n설정에서 오버레이를 끄고 권한을 허용한 뒤 화면의 [다시 연결] 버튼을 눌러주세요.'
-        : '카메라를 초기화할 수 없습니다. 권한을 확인해주세요.';
-      
       const container = document.querySelector('.camera-aspect-box');
       if (container) {
         let retryBtn = document.getElementById('btn-camera-retry');
@@ -437,17 +448,25 @@
           retryBtn.id = 'btn-camera-retry';
           retryBtn.className = 'btn-primary';
           retryBtn.innerText = '📸 카메라 다시 연결하기';
-          retryBtn.style.position = 'absolute';
-          retryBtn.style.zIndex = '100';
-          retryBtn.onclick = () => {
-            retryBtn.remove();
-            initCamera();
-          };
+          retryBtn.style.cssText = 'position:absolute;z-index:100;top:50%;left:50%;transform:translate(-50%,-50%);';
+          retryBtn.onclick = () => { retryBtn.remove(); initCamera(); };
           container.appendChild(retryBtn);
         }
       }
       alert(msg);
+      return;
     }
+
+    state.cameraStream = stream;
+    const video = $('#camera-preview');
+    if (video) {
+      video.srcObject = stream;
+      video.setAttribute('playsinline', '');
+      video.setAttribute('autoplay', '');
+      video.muted = true;
+      try { await video.play(); } catch(e) { console.warn('autoplay blocked:', e.message); }
+    }
+    await populateCameraDevices();
   }
 
   /**
