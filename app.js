@@ -406,20 +406,7 @@
         constraints.video.facingMode = state.facingMode || 'user';
       }
 
-      // 고해상도 제약 실패 시 최소 제약으로 재시도
-      let stream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (firstErr) {
-        const retryable = ['AbortError', 'NotReadableError', 'OverconstrainedError', 'TypeError'];
-        if (retryable.includes(firstErr.name)) {
-          console.warn('카메라 고해상도 요청 실패, 기본 설정으로 재시도:', firstErr.name);
-          // facingMode 제거 후 최소 제약으로 재시도 (PC 웹캠 호환성)
-          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        } else {
-          throw firstErr;
-        }
-      }
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       state.cameraStream = stream;
 
       const video = $('#camera-preview');
