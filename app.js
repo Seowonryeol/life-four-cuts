@@ -1744,7 +1744,6 @@
         $$('.style-option-item').forEach(el => el.classList.remove('active'));
         item.classList.add('active');
         state.frame.bg = style.key;
-        state.frame.deco = 'none';
         renderEditCanvas();
       });
       container.appendChild(item);
@@ -2731,9 +2730,7 @@
         $$('.color-swatch').forEach(s => s.classList.remove('active'));
         clone.classList.add('active');
         state.frame.color = clone.dataset.color;
-        state.frame.bg = 'none'; // clear background image
-        state.frame.deco = 'none'; // clear deco template
-        
+        state.frame.bg = 'none'; // ADDED: clear background image
         // Update bg UI to remove active state
         $$('.style-option-item').forEach(el => el.classList.remove('active'));
         const noneOption = document.querySelector('.style-option-item[data-bg="none"]');
@@ -2745,22 +2742,6 @@
         clone.classList.add('active');
       }
     });
-
-    // RGB 커스텀 색상 피커 이벤트 설정
-    const colorCustom = $('#color-custom');
-    if (colorCustom) {
-      colorCustom.addEventListener('input', (e) => {
-        state.frame.color = e.target.value;
-        state.frame.bg = 'none';
-        state.frame.deco = 'none';
-        
-        $$('.color-swatch').forEach(s => s.classList.remove('active'));
-        $$('.style-option-item').forEach(el => el.classList.remove('active'));
-        const noneOption = document.querySelector('.style-option-item[data-bg="none"]');
-        if (noneOption) noneOption.classList.add('active');
-        renderEditCanvas();
-      });
-    }
 
     // 배경 선택 UI (renderBgOptions()가 상단에서 이미 호출됨)
 
