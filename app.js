@@ -1740,9 +1740,9 @@
     container.innerHTML = '';
 
     BG_STYLES.forEach(style => {
-      // Filter templates based on layout
-      if (state.frame.layout !== 'strip' && style.key.startsWith('vert4_')) return;
-      if (state.frame.layout === 'strip' && !style.key.startsWith('vert4_') && style.key !== 'none') return;
+      // vert4_ 템플릿은 세로 네컷(strip4)에서만 표시
+      if (state.frame.layout !== 'strip4' && style.key.startsWith('vert4_')) return;
+      if (state.frame.layout === 'strip4' && !style.key.startsWith('vert4_') && style.key !== 'none') return;
       
       const item = document.createElement('div');
       item.className = 'style-option-item' + (state.frame.bg === style.key ? ' active' : '');
@@ -2235,7 +2235,7 @@
     container.innerHTML = '';
     
     let options = [];
-    if (state.frame.layout === 'strip') {
+    if (state.frame.layout === 'strip4') {
       options = [
         { label: 'ពណ៌រឹង<br>Solid', bg: 'none', deco: 'none' },
         { label: 'គំរូទី១<br>Template 1', bg: 'vert4_bg1', deco: 'vert4_deco1' },
@@ -2762,7 +2762,18 @@
       }
     });
 
-    // 배경 선택 UI (renderBgOptions()가 상단에서 이미 호출됨)
+    // RGB 커스텀 색상 피커 이벤트
+    const colorCustomEl = document.getElementById('color-custom');
+    if (colorCustomEl) {
+      colorCustomEl.addEventListener('input', (e) => {
+        state.frame.color = e.target.value;
+        state.frame.bg = 'none';
+        $$('.style-option-item').forEach(el => el.classList.remove('active'));
+        const noneOpt = document.querySelector('.style-option-item[data-bg="none"]');
+        if (noneOpt) noneOpt.classList.add('active');
+        renderEditCanvas();
+      });
+    }
 
     // 합성 미리보기 렌더링
     await renderEditCanvas();
