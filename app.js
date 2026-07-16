@@ -95,7 +95,8 @@
     adjustments: { brightness: 50, saturation: 50, contrast: 50 },
     stickers:        [],
     loadedPhotos:    [],
-    cameraStream:  null,
+    cameraStream:    null,
+    zoomValue:       1,
     countdownTimer: null,
     selectedSticker: null,
     pendingStickerEmoji: null,
@@ -490,8 +491,92 @@
         const _track = stream.getVideoTracks()[0];
         const _facing = _track ? (_track.getSettings().facingMode || '') : '';
         const _isRear = _facing === 'environment' || (!_facing && state.facingMode === 'environment');
-        video.style.transform = _isRear ? 'scaleX(1)' : 'scaleX(-1)';
+        
+        // 데스크톱(!isMobile) 촬영 시 화면 좌우 반전을 현재의 반대로 설정
+        let mirror = !_isRear;
+        if (!isMobile) {
+          mirror = !mirror; // 데스크톱이면 mirror 상태 뒤집음
+        }
+        video.style.transform = mirror ? 'scaleX(-1)' : 'scaleX(1)';
       };
+
+      // 줌 컨트롤러 활성화 및 리스너 등록
+      state.zoomValue = 1;
+      const zoomContainer = document.getElementById('zoom-control-container');
+      const zoomSlider = document.getElementById('camera-zoom-slider');
+      if (zoomContainer && zoomSlider) {
+        zoomContainer.classList.remove('hidden');
+        zoomSlider.value = 1;
+
+        const _track = stream.getVideoTracks()[0];
+        const capabilities = (_track && typeof _track.getCapabilities === 'function') ? _track.getCapabilities() : {};
+
+        // 리셋 대비 기본 스케일 제거
+        video.style.transform = video.style.transform.split(' scale(')[0];
+
+        zoomSlider.oninput = async (e) => {
+          const val = parseFloat(e.target.value);
+          state.zoomValue = val;
+
+          if (capabilities.zoom) {
+            try {
+              await _track.applyConstraints({ advanced: [{ zoom: val }] });
+            } catch (err) {
+              console.warn('Hardware zoom failed, falling back to CSS zoom:', err);
+              applyCSSZoom(val);
+            }
+          } else {
+            applyCSSZoom(val);
+          }
+        };
+
+        function applyCSSZoom(val) {
+          // 비디오 미러링 방향 검출하여 줌 스케일링을 함께 덧씌움
+          const currentTransform = video.style.transform;
+          const isFlipped = currentTransform.includes('scaleX(-1)');
+          const baseTransform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
+          video.style.transform = `${baseTransform} scale(${val})`;
+        }
+      }
+
+      // 모바일 두 손가락 핀치 줌 제어 (touchstart, touchmove, touchend)
+      let initialPinchDist = 0;
+      let initialZoomVal = 1;
+
+      video.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2 && zoomSlider) {
+          initialPinchDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          initialZoomVal = state.zoomValue;
+        }
+      }, { passive: true });
+
+      video.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && initialPinchDist > 0 && zoomSlider) {
+          const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const ratio = dist / initialPinchDist;
+          
+          // 줌 범위를 1.0 ~ 3.0 으로 세팅
+          let newZoom = initialZoomVal * ratio;
+          newZoom = Math.max(1, Math.min(3, newZoom));
+          newZoom = Math.round(newZoom * 10) / 10; // 소수점 한자리 반올림
+
+          zoomSlider.value = newZoom;
+          // input 이벤트를 강제 발생시켜 슬라이더 핸들러 작동 유도
+          zoomSlider.dispatchEvent(new Event('input'));
+        }
+      }, { passive: true });
+
+      video.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) {
+          initialPinchDist = 0;
+        }
+      }, { passive: true });
 
       // 안전 재생 호출 및 자동재생 차단 해제 fallback 설정
       video.load();
@@ -622,19 +707,46 @@
     const trackSettings = activeTrack ? activeTrack.getSettings() : {};
     const isRearCamera = trackSettings.facingMode === 'environment';
 
+    // 데스크톱(!isMobile) 촬영 시 화면 좌우 반전을 현재의 반대로 설정
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    let mirrorCapture = !isRearCamera;
+    if (!isMobile) {
+      mirrorCapture = !mirrorCapture; // 데스크톱은 반전 논리를 뒤집음
+    }
+
+    const zoom = state.zoomValue || 1;
+
     ctx.save();
     if (rotated) {
       // 캔버스 중심으로 이동 후 회전
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.rotate((orientAngle * Math.PI) / 180);
-      if (!isRearCamera) ctx.scale(-1, 1);
-      ctx.drawImage(video, -vw / 2, -vh / 2, vw, vh);
+      if (mirrorCapture) ctx.scale(-1, 1);
+      
+      if (zoom > 1) {
+        const sw = vw / zoom;
+        const sh = vh / zoom;
+        const sx = (vw - sw) / 2;
+        const sy = (vh - sh) / 2;
+        ctx.drawImage(video, sx, sy, sw, sh, -vw / 2, -vh / 2, vw, vh);
+      } else {
+        ctx.drawImage(video, -vw / 2, -vh / 2, vw, vh);
+      }
     } else {
-      if (!isRearCamera) {
+      if (mirrorCapture) {
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
       }
-      ctx.drawImage(video, 0, 0, vw, vh);
+      
+      if (zoom > 1) {
+        const sw = vw / zoom;
+        const sh = vh / zoom;
+        const sx = (vw - sw) / 2;
+        const sy = (vh - sh) / 2;
+        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.drawImage(video, 0, 0, vw, vh);
+      }
     }
     ctx.restore();
 
@@ -686,6 +798,12 @@
         oscillator.connect(gainNode);
         gainNode.connect(ctx.destination);
 
+        // 재생 후 리소스 해제
+        oscillator.onended = () => {
+          oscillator.disconnect();
+          gainNode.disconnect();
+        };
+
         oscillator.start(ctx.currentTime);
         oscillator.stop(ctx.currentTime + 0.1);
       } else if (type === 'shutter') {
@@ -715,6 +833,14 @@
         source.connect(filter);
         filter.connect(gainNode);
         gainNode.connect(ctx.destination);
+
+        // 재생 후 리소스 해제
+        source.stop(ctx.currentTime + 0.15);
+        source.onended = () => {
+          source.disconnect();
+          filter.disconnect();
+          gainNode.disconnect();
+        };
 
         source.start(ctx.currentTime);
       }
@@ -1187,12 +1313,31 @@
         ctx.textBaseline = 'middle';
         ctx.fillText('✕', btnX + btnSize / 2, btnY + btnSize / 2);
 
-        // 크기 조절 핸들 3개 (우하단, 좌하단, 좌상단)
+        // 회전 핸들 (상단 중앙 위에 연결선과 원으로 표시)
+        const rotY = -halfSize - 40;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, -halfSize);
+        ctx.lineTo(0, rotY);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(180, 100, 255, 0.9)'; // 보라색
+        ctx.beginPath();
+        ctx.arc(0, rotY, 32, 0, Math.PI * 2); // 반경 32px 동일 크기 적용
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 22px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('↻', 0, rotY);
+
+        // 크기 조절 핸들 2개 (우하단, 좌하단만 남겨 조작 단순화)
         ctx.fillStyle = 'rgba(100, 180, 255, 0.9)';
         const handlePositions = [
           { x: halfSize, y: halfSize },   // 우하단 (BR)
-          { x: -halfSize, y: halfSize },  // 좌하단 (BL)
-          { x: -halfSize, y: -halfSize }  // 좌상단 (TL)
+          { x: -halfSize, y: halfSize }   // 좌하단 (BL)
         ];
         handlePositions.forEach(pos => {
           ctx.beginPath();
@@ -1240,26 +1385,31 @@
 
 
 
+    function getLocalCoords(s, normX, normY) {
+      const canvasW = canvas.width;
+      const canvasH = canvas.height;
+      const dx = (normX - s.x) * canvasW;
+      const dy = (normY - s.y) * canvasH;
+      const angleRad = -(s.rotation || 0) * Math.PI / 180;
+      
+      const localX = dx * Math.cos(angleRad) - dy * Math.sin(angleRad);
+      const localY = dx * Math.sin(angleRad) + dy * Math.cos(angleRad);
+      return { localX, localY };
+    }
+
     function isDeleteButtonHit(stickerIndex, normX, normY) {
       const s = state.stickers[stickerIndex];
       if (!s) return false;
 
       const canvasW = canvas.width;
-      const canvasH = canvas.height;
       const fontSize = s.size * canvasW;
       const halfSize = fontSize / 2 + 4;   // px
       const btnR     = 40;                  // px — 원 반지름
 
-      const btnCxPx = s.x * canvasW + halfSize;   // 우상단
-      const btnCyPx = s.y * canvasH - halfSize;
-
-      const btnCxN = btnCxPx / canvasW;
-      const btnCyN = btnCyPx / canvasH;
-      const hitR   = (btnR + 8) / canvasW;  
-
-      const dx = normX - btnCxN;
-      const dy = normY - btnCyN;
-      return Math.sqrt(dx * dx + dy * dy) < hitR;
+      const { localX, localY } = getLocalCoords(s, normX, normY);
+      // 우상단 (halfSize, -halfSize)과의 거리 판단
+      const dist = Math.hypot(localX - halfSize, localY - (-halfSize));
+      return dist < (btnR + 8);
     }
 
     function isResizeHandleHit(stickerIndex, normX, normY) {
@@ -1267,37 +1417,41 @@
       if (!s) return false;
 
       const canvasW = canvas.width;
-      const canvasH = canvas.height;
       const fontSize = s.size * canvasW;
       const halfSize = fontSize / 2 + 4;
       const handleR  = 32;
-      const hitR = (handleR + 12) / canvasW;
 
-      const handlePositions = [
-        { x: halfSize, y: halfSize },   // 우하단
-        { x: -halfSize, y: halfSize },  // 좌하단
-        { x: -halfSize, y: -halfSize }  // 좌상단
-      ];
+      const { localX, localY } = getLocalCoords(s, normX, normY);
 
-      for (let pos of handlePositions) {
-        const hxPx = s.x * canvasW + pos.x;
-        const hyPx = s.y * canvasH + pos.y;
-        const hxN  = hxPx / canvasW;
-        const hyN  = hyPx / canvasH;
-        const dx = normX - hxN;
-        const dy = normY - hyN;
-        if (Math.sqrt(dx * dx + dy * dy) < hitR) return true;
-      }
-      return false;
+      // 우하단 (BR: halfSize, halfSize) & 좌하단 (BL: -halfSize, halfSize) 두 개 피드백 반영
+      const distBR = Math.hypot(localX - halfSize, localY - halfSize);
+      const distBL = Math.hypot(localX - (-halfSize), localY - halfSize);
+
+      return distBR < (handleR + 12) || distBL < (handleR + 12);
     }
-    
 
+    function isRotateHandleHit(stickerIndex, normX, normY) {
+      const s = state.stickers[stickerIndex];
+      if (!s) return false;
+
+      const canvasW = canvas.width;
+      const fontSize = s.size * canvasW;
+      const halfSize = fontSize / 2 + 4;
+      const rotR     = 32;
+
+      const { localX, localY } = getLocalCoords(s, normX, normY);
+      // 상단 중앙 위 (0, -halfSize - 40)과의 거리 판단
+      const dist = Math.hypot(localX - 0, localY - (-halfSize - 40));
+      return dist < (rotR + 12);
+    }
 
     let isResizing = false;
-      
-    
+    let isRotating = false;
+
     let resizeStartDist = 0;
     let resizeStartSize = 0;
+    let rotateStartAngle = 0;
+    let stickerStartAngle = 0;
 
     // 포인터/터치 다운
     function handlePointerDown(e) {
@@ -1307,7 +1461,7 @@
       // 3. 기존 스티커 선택 확인 (드래그 우선 여부 확인)
       const hitIndex = findStickerAt(normX, normY);
 
-      // 1. 선택된 스티커의 삭제 버튼 확인 (중심과 너무 가까우면 무시하여 드래그 우선)
+      // 1. 선택된 스티커의 삭제 버튼 확인
       if (state.selectedSticker !== null && isDeleteButtonHit(state.selectedSticker, normX, normY)) {
         const s = state.stickers[state.selectedSticker];
         const distToCenter = Math.sqrt(Math.pow(normX - s.x, 2) + Math.pow(normY - s.y, 2));
@@ -1319,7 +1473,19 @@
         }
       }
 
-      // 2. 선택된 스티커의 크기 조절 핸들 확인
+      // 2. 선택된 스티커의 회전 핸들 확인
+      if (state.selectedSticker !== null && isRotateHandleHit(state.selectedSticker, normX, normY)) {
+        isRotating = true;
+        const s = state.stickers[state.selectedSticker];
+        const rect = canvas.getBoundingClientRect();
+        const pixelDx = (normX - s.x) * rect.width;
+        const pixelDy = (normY - s.y) * rect.height;
+        rotateStartAngle = Math.atan2(pixelDy, pixelDx) * 180 / Math.PI;
+        stickerStartAngle = s.rotation || 0;
+        return;
+      }
+
+      // 3. 선택된 스티커의 크기 조절 핸들 확인
       if (state.selectedSticker !== null && isResizeHandleHit(state.selectedSticker, normX, normY)) {
         isResizing = true;
         const s = state.stickers[state.selectedSticker];
@@ -1367,8 +1533,20 @@
       e.preventDefault();
       const { normX, normY } = getCanvasCoords(e);
 
+      if (isRotating && state.selectedSticker !== null) {
+        // 드래그 회전 구현
+        const s = state.stickers[state.selectedSticker];
+        const rect = canvas.getBoundingClientRect();
+        const pixelDx = (normX - s.x) * rect.width;
+        const pixelDy = (normY - s.y) * rect.height;
+        const currentAngle = Math.atan2(pixelDy, pixelDx) * 180 / Math.PI;
+        
+        const deltaAngle = currentAngle - rotateStartAngle;
+        s.rotation = (stickerStartAngle + deltaAngle) % 360;
+        renderEditCanvas();
+        return;
+      }
 
-      
       if (isResizing && state.selectedSticker !== null) {
         // 크기 조절: 스티커 중심(s.x, s.y)에서 현재 포인터까지의 픽셀 거리 계산
         const s = state.stickers[state.selectedSticker];
@@ -1396,7 +1574,7 @@
     function handlePointerUp(e) {
       state.isDragging = false;
       isResizing = false;
-      
+      isRotating = false;
     }
 
     // 더블클릭/더블탭: 스티커 크기 순환
@@ -1683,16 +1861,22 @@
   /**
    * 배경 스타일 정의 목록
    */
+
   const BG_STYLES = [
-    { key: 'none',           label: 'ដើម\nSolid',         deco: 'none',  thumb: null },
-    { key: 'gradient_pink',  label: 'ផ្កា\nPink Gradient', deco: 'none',  thumb: null },
-    { key: 'gradient_blue',  label: 'ពណ៌ខៀវ\nBlue Gradient', deco: 'none',  thumb: null },
-    { key: 'gradient_gold',  label: 'មាស\nGold Glam',     deco: 'none',  thumb: null },
-    { key: 'film_noir',      label: 'ហ្វីល\nFilm Noir',   deco: 'none',  thumb: null },
-    { key: 'pastel_bloom',   label: 'ផ្ការ\nPastel Bloom', deco: 'none',  thumb: null },
-    { key: 'minimal_dots',   label: 'ចំណុច\nMinimal Dots', deco: 'none',  thumb: null },
-    { key: 'vert4_bg1',      label: 'Template 1',          deco: 'vert4_deco1', thumb: null },
-    { key: 'vert4_bg2',      label: 'Template 2',          deco: 'vert4_deco2', thumb: null }
+    { key: 'none',             label: 'ដើម\nSolid',           deco: 'none',  thumb: null },
+    { key: 'gradient_pink',    label: 'ផ្កា\nPink Gradient',    deco: 'none',  thumb: null },
+    { key: 'gradient_blue',    label: 'ពណ៌ខៀវ\nBlue Gradient',  deco: 'none',  thumb: null },
+    { key: 'gradient_gold',    label: 'មាស\nGold Glam',       deco: 'none',  thumb: null },
+    { key: 'retro_neon',       label: 'ណេអុង\nRetro Neon',     deco: 'none',  thumb: null },
+    { key: 'sunset_orange',    label: 'ថ្ងៃលិច\nSunset Orange',  deco: 'none',  thumb: null },
+    { key: 'matrix_green',     label: 'ម៉ាទ្រីស\nMatrix Green',  deco: 'none',  thumb: null },
+    { key: 'cyber_wave',       label: 'ស៊ីប័រ\nCyber Wave',     deco: 'none',  thumb: null },
+    { key: 'pastel_lavender',  label: 'ឡាវេនឌឺ\nLavender',      deco: 'none',  thumb: null },
+    { key: 'film_noir',        label: 'ហ្វីល\nFilm Noir',       deco: 'none',  thumb: null },
+    { key: 'pastel_bloom',     label: 'ផ្ការ\nPastel Bloom',    deco: 'none',  thumb: null },
+    { key: 'minimal_dots',     label: 'ចំណុច\nMinimal Dots',    deco: 'none',  thumb: null },
+    { key: 'vert4_bg1',        label: 'Template 1',            deco: 'vert4_deco1', thumb: null },
+    { key: 'vert4_bg2',        label: 'Template 2',            deco: 'vert4_deco2', thumb: null }
   ];
 
   /**
@@ -1742,6 +1926,60 @@
           ctx.arc(px, py, pr, 0, Math.PI * 2);
           ctx.fill();
         }
+        break;
+      }
+      case 'retro_neon': {
+        const grd = ctx.createLinearGradient(0, 0, w, h);
+        grd.addColorStop(0, '#ff007f');
+        grd.addColorStop(0.5, '#7b2cbf');
+        grd.addColorStop(1, '#10002b');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = 'rgba(255, 0, 127, 0.12)';
+        ctx.lineWidth = 3;
+        for (let i = -w; i < w; i += 60) {
+          ctx.beginPath();
+          ctx.moveTo(i, 0);
+          ctx.lineTo(i + w, h);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'sunset_orange': {
+        const grd = ctx.createLinearGradient(0, 0, 0, h);
+        grd.addColorStop(0, '#ff4e50');
+        grd.addColorStop(0.6, '#f9d423');
+        grd.addColorStop(1, '#ff8008');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+        break;
+      }
+      case 'matrix_green': {
+        ctx.fillStyle = '#0a100d';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(0, 255, 65, 0.22)';
+        for (let i = 0; i < 40; i++) {
+          const colX = Math.floor(Math.random() * (w / 10)) * 10;
+          const colY = Math.random() * h;
+          const colLen = Math.random() * 120 + 40;
+          ctx.fillRect(colX, colY, 2, colLen);
+        }
+        break;
+      }
+      case 'cyber_wave': {
+        const grd = ctx.createLinearGradient(0, 0, w, 0);
+        grd.addColorStop(0, '#0575e6');
+        grd.addColorStop(1, '#00f260');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+        break;
+      }
+      case 'pastel_lavender': {
+        const grd = ctx.createLinearGradient(0, 0, 0, h);
+        grd.addColorStop(0, '#e0c3fc');
+        grd.addColorStop(1, '#8ec5fc');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
         break;
       }
       case 'film_noir': {
@@ -2463,24 +2701,40 @@
     // 상태 초기화
     state.adjustments = { brightness: 50, saturation: 50, contrast: 50 };
 
-    // 레이아웃별 카메라 영역 비율 설정 (3번 피드백 반영)
+    // 레이아웃별 카메라 영역 비율 설정 (모바일 높이 붕괴 해결 & 데스크톱 꽉 차게 확장)
     const aspectBox = document.querySelector('.camera-aspect-box');
     if (aspectBox) {
-      if (state.frame.layout === 'grid22v') {
-        aspectBox.style.aspectRatio = '3 / 4';
-        aspectBox.style.width = 'auto';
-        aspectBox.style.height = '100%';
-        aspectBox.style.maxHeight = '72vh'; // 모바일 화면에서 잘리지 않도록 안전 높이 설정
-      } else if (state.frame.layout === 'grid22') {
-        aspectBox.style.aspectRatio = '1 / 1';
-        aspectBox.style.width = 'auto';
-        aspectBox.style.height = '100%';
-        aspectBox.style.maxHeight = '72vh';
-      } else {
-        aspectBox.style.aspectRatio = '540 / 380';
+      const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        // 모바일: 가로 기준 100% 폭, 높이 auto로 붕괴 방지, 최대 높이 60vh 제한
         aspectBox.style.width = '100%';
         aspectBox.style.height = 'auto';
-        aspectBox.style.maxHeight = '100%';
+        aspectBox.style.maxHeight = '60vh';
+        if (state.frame.layout === 'grid22v') {
+          aspectBox.style.aspectRatio = '3 / 4';
+        } else if (state.frame.layout === 'grid22') {
+          aspectBox.style.aspectRatio = '1 / 1';
+        } else {
+          aspectBox.style.aspectRatio = '540 / 380';
+        }
+      } else {
+        // 데스크톱: 높이 기준 100% 채움, 가로 auto, 2x2 격자는 최대 높이 95vh까지 크게 채움
+        if (state.frame.layout === 'grid22v') {
+          aspectBox.style.aspectRatio = '3 / 4';
+          aspectBox.style.width = 'auto';
+          aspectBox.style.height = '100%';
+          aspectBox.style.maxHeight = '95vh';
+        } else if (state.frame.layout === 'grid22') {
+          aspectBox.style.aspectRatio = '1 / 1';
+          aspectBox.style.width = 'auto';
+          aspectBox.style.height = '100%';
+          aspectBox.style.maxHeight = '95vh';
+        } else {
+          aspectBox.style.aspectRatio = '540 / 380';
+          aspectBox.style.width = '100%';
+          aspectBox.style.height = 'auto';
+          aspectBox.style.maxHeight = '100%';
+        }
       }
     }
     state.currentShot = 0;
@@ -3062,6 +3316,7 @@
     state.filter = 'none';
     state.stickers = [];
     state.cameraStream = null;
+    state.zoomValue = 1;
     state.countdownTimer = null;
     state.selectedSticker = null;
     state.pendingStickerEmoji = null;
@@ -3286,6 +3541,55 @@
       });
     });
 
+
+    // --- 버그/피드백 신고 AJAX 전송 리스너 ---
+    const feedbackForm = document.getElementById('feedback-form');
+    if (feedbackForm) {
+      feedbackForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const submitBtn = feedbackForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn ? submitBtn.innerText : '';
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerText = 'សូមរង់ចាំ... Sending...';
+        }
+
+        const formData = new FormData(feedbackForm);
+        const data = {};
+        formData.forEach((value, key) => {
+          data[key] = value;
+        });
+
+        try {
+          const response = await fetch('https://formsubmit.co/ajax/dnjsfuf123456@gmail.com', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(data)
+          });
+
+          if (response.ok) {
+            alert('របាយការណ៍ត្រូវបានផ្ញើដោយជោគជ័យ! សូមអរគុណ!\n신고가 성공적으로 접수되었습니다. 감사합니다!');
+            const modal = document.getElementById('feedback-modal');
+            if (modal) modal.style.display = 'none';
+            feedbackForm.reset();
+          } else {
+            throw new Error('Response not OK');
+          }
+        } catch (err) {
+          console.error('Feedback submit failed:', err);
+          alert('មានកំហុសក្នុងការផ្ញើ។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ।\n전송 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalText;
+          }
+        }
+      });
+    }
 
     // --- 시작 화면 표시 ---
     showScreen('start');

@@ -1151,4 +1151,45 @@ button:focus-visible, input:focus-visible { outline:2px solid var(--neon-blue); 
 .thumb-slot.active:hover::after {
   opacity: 1;
 }
+
+/* ── Camera Zoom Control ── */
+.zoom-control-container {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  background: rgba(8, 8, 26, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(240px, 80vw);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transition: opacity 0.3s;
+}
+.zoom-control-container.hidden {
+  display: none !important;
+}
+.zoom-control-container input[type="range"] {
+  flex: 1;
+  height: 4px;
+  accent-color: var(--neon-blue);
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+.zoom-icon {
+  font-size: 14px;
+  color: var(--text-primary);
+  user-select: none;
+}
+
 @media print { body { display:none; } }
+
