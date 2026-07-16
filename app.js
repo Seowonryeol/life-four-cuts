@@ -164,6 +164,7 @@
     // 지정된 화면 표시
     const targetScreen = $(`#screen-${name}`);
     if (targetScreen) {
+      targetScreen.scrollTop = 0; // 새 화면으로 이동 시 스크롤 상단 리셋 (독립 뷰포트 보장)
       // requestAnimationFrame으로 트랜지션 보장
       requestAnimationFrame(() => {
         targetScreen.classList.add('active');
@@ -475,16 +476,38 @@
     state.cameraStream = stream;
     const video = $('#camera-preview');
     if (video) {
-      video.srcObject = stream;
-      video.setAttribute('playsinline', '');
-      video.setAttribute('autoplay', '');
+      // playsinline 및 muted 속성을 스트림 연결 전에 먼저 세팅하여 iOS/Safari 블랙아웃 차단
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
       video.muted = true;
-      try { await video.play(); } catch(e) { console.warn('autoplay blocked:', e.message); }
-      // 전면 카메라만 좌우 반전 미리보기
-      const _track = stream.getVideoTracks()[0];
-      const _facing = _track ? (_track.getSettings().facingMode || '') : '';
-      const _isRear = _facing === 'environment' || (!_facing && state.facingMode === 'environment');
-      video.style.transform = _isRear ? 'scaleX(1)' : 'scaleX(-1)';
+      video.autoplay = true;
+
+      // 스트림 연결
+      video.srcObject = stream;
+
+      // 비디오가 실제로 재생 시작했을 때 스케일링 설정
+      video.onloadedmetadata = () => {
+        const _track = stream.getVideoTracks()[0];
+        const _facing = _track ? (_track.getSettings().facingMode || '') : '';
+        const _isRear = _facing === 'environment' || (!_facing && state.facingMode === 'environment');
+        video.style.transform = _isRear ? 'scaleX(1)' : 'scaleX(-1)';
+      };
+
+      // 안전 재생 호출 및 자동재생 차단 해제 fallback 설정
+      video.load();
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.warn('카메라 비디오 자동 재생 차단됨. 다음 터치 시 재생 연동 설정:', error);
+          const playOnTouch = () => {
+            video.play();
+            document.removeEventListener('touchstart', playOnTouch);
+            document.removeEventListener('click', playOnTouch);
+          };
+          document.addEventListener('touchstart', playOnTouch);
+          document.addEventListener('click', playOnTouch);
+        });
+      }
     }
     await populateCameraDevices();
   }
