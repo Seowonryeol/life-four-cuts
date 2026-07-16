@@ -48,13 +48,13 @@
         gap:     30,
         totalShots: 4
       },
-      // 세로 2×2 (스마트폰 세로 사진 4장)
+      // 세로 2×2 (스마트폰 세로 사진 4장 - 3:4 portrait)
       grid22v: {
         canvasWidth:  1200,
-        canvasHeight: 1600,
-        photoWidth:   555,
-        photoHeight:  710,
-        padding: 45,
+        canvasHeight: 1550,
+        photoWidth:   525,
+        photoHeight:  700,
+        padding: 60,
         gap:     30,
         totalShots: 4
       },
@@ -280,11 +280,11 @@
     });
   }
 
-  async function saveCustomTemplate(key, dataURL, name) {
+  async function saveCustomTemplate(key, dataURL, name, layout) {
     const db = await openIDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(IDB_STORE, 'readwrite');
-      tx.objectStore(IDB_STORE).put({ key, dataURL, name });
+      tx.objectStore(IDB_STORE).put({ key, dataURL, name, layout });
       tx.oncomplete = resolve;
       tx.onerror = reject;
     });
@@ -366,7 +366,8 @@
         const dataURL = ev.target.result;
         const key = 'custom_' + Date.now();
         const name = file.name.replace(/\.[^.]+$/, '');
-        await saveCustomTemplate(key, dataURL, name);
+        const layout = state.frame.layout; // 현재 레이아웃 저장
+        await saveCustomTemplate(key, dataURL, name, layout);
         const bgImg = new Image();
         bgImg.src = dataURL;
         state.bgImages[key] = bgImg;
@@ -571,22 +572,44 @@
     const video = $('#camera-preview');
     if (!video || !video.videoWidth) return null;
 
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+
+    // 기기 회전 각도 감지 (일부 안드로이드에서 스트림이 회전 미보정)
+    let orientAngle = 0;
+    if (window.screen && window.screen.orientation) {
+      orientAngle = window.screen.orientation.angle || 0;
+    } else if (typeof window.orientation !== 'undefined') {
+      orientAngle = window.orientation;
+    }
+    // 90/270도 회전된 경우 캔버스 가로세로를 뒤집어 저장
+    const rotated = (orientAngle === 90 || orientAngle === -90 || orientAngle === 270);
+
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width  = rotated ? vh : vw;
+    canvas.height = rotated ? vw : vh;
 
     const ctx = canvas.getContext('2d');
 
-    // 전면 카메라만 좌우 반전 (후면 카메라는 반전 없음)
     const activeTrack = state.cameraStream ? state.cameraStream.getVideoTracks()[0] : null;
     const trackSettings = activeTrack ? activeTrack.getSettings() : {};
     const isRearCamera = trackSettings.facingMode === 'environment';
-    if (!isRearCamera) {
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
-    }
 
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.save();
+    if (rotated) {
+      // 캔버스 중심으로 이동 후 회전
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((orientAngle * Math.PI) / 180);
+      if (!isRearCamera) ctx.scale(-1, 1);
+      ctx.drawImage(video, -vw / 2, -vh / 2, vw, vh);
+    } else {
+      if (!isRearCamera) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(video, 0, 0, vw, vh);
+    }
+    ctx.restore();
 
     return canvas.toDataURL('image/jpeg', CONFIG.captureQuality);
   }
@@ -1461,18 +1484,16 @@
       drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
       ctx.filter = 'none';
 
-      // 'Solid' 또는 'Template 2' 인 경우 10px 검은색 테두리 추가
-      if (frameConfig.bg === 'none' || frameConfig.bg === 'vert4_bg2') {
-        ctx.save();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 5;
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 3;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
-        ctx.restore();
-      }
+      // 모든 사진 프레임별로 1px 검은색 테두리 및 3px 우측 하단 그림자 적용
+      ctx.save();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = 3;
+      ctx.shadowOffsetX = 3;
+      ctx.shadowOffsetY = 3;
+      ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+      ctx.restore();
 
       ctx.restore();
     }
@@ -1782,7 +1803,7 @@
     BG_STYLES.forEach(style => {
       // vert4_ 템플릿은 세로 네컷(strip4)에서만 표시
       if (state.frame.layout !== 'strip4' && style.key.startsWith('vert4_')) return;
-      if (state.frame.layout === 'strip4' && !style.key.startsWith('vert4_') && style.key !== 'none') return;
+      // strip4에서는 vert4_ 스타일과 기본 스타일(none 포함) 모두 표시
       
       const item = document.createElement('div');
       item.className = 'style-option-item' + (state.frame.bg === style.key ? ' active' : '');
@@ -1808,11 +1829,13 @@
       container.appendChild(item);
     });
 
-    // 커스텀 템플릿들 (IndexedDB에서 로드)
+    // 커스텀 템플릿들 (IndexedDB에서 로드, 현재 레이아웃 필터)
     loadCustomTemplatesFromDB().then(templates => {
-      templates.forEach(t => {
-        addCustomTemplateOption(container, t);
-      });
+      templates
+        .filter(t => !t.layout || t.layout === state.frame.layout)
+        .forEach(t => {
+          addCustomTemplateOption(container, t);
+        });
     });
   }
 
@@ -1838,25 +1861,48 @@
    */
   function drawDateWatermark(ctx, w, h, bgColor) {
     const date = getFormattedDate();
-    // 배경 밝기에 따라 텍스트 색상 자동 결정
     let textColor = '#000000';
     if (bgColor && bgColor.startsWith('#')) {
       const brightness = getColorBrightness(bgColor);
       textColor = brightness < 100 ? '#ffffff' : '#000000';
     }
 
+    // 레이아웃 정보로 하단 여백 계산
+    const layout = CONFIG.layouts[state.frame.layout] || CONFIG.layouts.strip;
+    const positions = getPhotoPositions(state.frame.layout, layout);
+    const lastPos = positions[positions.length - 1] || { y: 0, height: h * 0.8 };
+    const photoBottom = lastPos.y + lastPos.height; // 마지막 사진 하단 px
+    const bottomMargin = h - photoBottom;           // 여백 px
+
+    // 텍스트 2줄이 들어갈 수 있는 최대 폰트 크기 계산
+    // brand + date + gap(8px) + top/bottom padding(각 6px)
+    const usable = bottomMargin - 20; // 상하 10px 마진
+    if (usable < 20) return;          // 여백 부족 시 생략
+
+    const maxFontSize = Math.floor(usable / 2.8);  // 두 줄 + 간격 비율
+    const fontSize    = Math.min(maxFontSize, Math.round(w * 0.07)); // 최대 캔버스 너비의 7%
+
+    if (fontSize < 14) return; // 너무 작으면 생략
+
+    const brandSize = Math.round(fontSize * 1.1);
+    const dateSize  = fontSize;
+    const gap       = Math.round(fontSize * 0.3);
+    const bottomPad = Math.round(fontSize * 0.15) + 6;
+
     ctx.save();
     ctx.fillStyle = textColor;
     ctx.textAlign = 'center';
-
-    // 브랜드 텍스트
-    ctx.font = '700 84px "Outfit", "Pretendard", sans-serif'; // 70px * 1.2 = 84px
     ctx.textBaseline = 'bottom';
-    ctx.fillText('Life Four Cuts', w / 2, h - 95); // 10px (bottom) + 70px (date height) + 15px (gap) = 95px
 
-    // 날짜 텍스트
-    ctx.font = '900 70px "Outfit", "Pretendard", sans-serif';
-    ctx.fillText(date, w / 2, h - 10);
+    // 날짜 텍스트 (맨 아래)
+    ctx.font = `900 ${dateSize}px "Outfit", "Pretendard", sans-serif`;
+    const dateY = h - bottomPad;
+    ctx.fillText(date, w / 2, dateY);
+
+    // 브랜드 텍스트 (날짜 위)
+    ctx.font = `700 ${brandSize}px "Outfit", "Pretendard", sans-serif`;
+    ctx.fillText('Life Four Cuts', w / 2, dateY - dateSize - gap);
+
     ctx.restore();
   }
 
@@ -2029,27 +2075,12 @@
 
   // 이미지 미리 로드
   async function preloadBackgrounds() {
-    const bgs = [
-      { key: 'bg1', path: 'assets/background_01.png' },
-      { key: 'bg2', path: 'assets/background_02.png' },
-      { key: 'bg3', path: 'assets/background_03.png' },
-      { key: 'vert4_bg1', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784012757/Template 1_scqvmr.png' },
-      { key: 'vert4_bg2', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784008121/vert4_template_deco_02_gxvmmn.png' }
-    ];
     
     const decos = [
-      { key: 'vert4_deco1', path: 'assets/Template 1.png' },
-      { key: 'vert4_deco2', path: 'assets/vert4_template_deco_02.png' }
+      { key: 'vert4_deco1', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784008120/vert4_template_deco_01_wq4jtw.png' },
+      { key: 'vert4_deco2', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784008121/vert4_template_deco_02_gxvmmn.png' }
     ];
 
-    for (const bg of bgs) {
-      try {
-        const img = await loadImage(bg.path);
-        state.bgImages[bg.key] = img;
-      } catch (e) {
-        console.warn('Failed to load bg', bg.path);
-      }
-    }
 
     for (const deco of decos) {
       try {
@@ -2277,16 +2308,19 @@
     let options = [];
     if (state.frame.layout === 'strip4') {
       options = [
-        { label: 'ពណ៌រឹង<br>Solid', bg: 'none', deco: 'none' },
-        { label: 'គំរូទី១<br>Template 1', bg: 'vert4_bg1', deco: 'vert4_deco1' },
-        { label: 'គំរូទី២<br>Template 2', bg: 'vert4_bg2', deco: 'vert4_deco2' }
+        { label: 'Solid<br>단색', bg: 'none', deco: 'none' },
+        { label: 'Template 1', bg: 'vert4_bg1', deco: 'vert4_deco1' },
+        { label: 'Template 2', bg: 'vert4_bg2', deco: 'vert4_deco2' }
       ];
     } else {
       options = [
-        { label: 'ពណ៌រឹង<br>Solid', bg: 'none', deco: 'none' },
-        { label: 'ផ្ទៃខាងក្រោយ១<br>Background 1', bg: 'bg1', deco: 'none' },
-        { label: 'ផ្ទៃខាងក្រោយ២<br>Background 2', bg: 'bg2', deco: 'none' },
-        { label: 'ផ្ទៃខាងក្រោយ៣<br>Background 3', bg: 'bg3', deco: 'none' }
+        { label: 'Solid<br>단색', bg: 'none', deco: 'none' },
+        { label: 'Pink Gradient', bg: 'gradient_pink', deco: 'none' },
+        { label: 'Blue Gradient', bg: 'gradient_blue', deco: 'none' },
+        { label: 'Gold Glam', bg: 'gradient_gold', deco: 'none' },
+        { label: 'Film Noir', bg: 'film_noir', deco: 'none' },
+        { label: 'Pastel Bloom', bg: 'pastel_bloom', deco: 'none' },
+        { label: 'Minimal Dots', bg: 'minimal_dots', deco: 'none' }
       ];
     }
 
@@ -2401,6 +2435,20 @@
     state.loadedPhotos = [];
     state.shootingStarted = false;
     state.instantShootCallback = null;
+
+    // 썸네일 컨테이너 초기 빈 상태로 채우기
+    const thumbsContainer = $('#photo-thumbs');
+    const totalShots = getTotalShots();
+    if (thumbsContainer) {
+      thumbsContainer.innerHTML = '';
+      for (let i = 0; i < totalShots; i++) {
+        const slot = createElement('div', 'thumb-slot');
+        slot.dataset.index = i;
+        const num = createElement('span', 'thumb-number', String(i + 1));
+        slot.appendChild(num);
+        thumbsContainer.appendChild(slot);
+      }
+    }
 
     // 촬영 표시기 업데이트
     updateShotIndicator();
@@ -2665,13 +2713,29 @@
     const cameraPreview = $('#camera-preview');
     const canvas = $('#shoot-preview-canvas');
     
-    // 데이터 즉시 등록 및 기존 사진들만 먼저 렌더링 (현재 촬영 컷은 빈 슬롯 상태 유지)
-    state.photos.push(dataURL);
-    
-    // 깜빡임 방지용 이미지 캐싱
-    const imgObj = new Image();
-    imgObj.src = dataURL;
-    state.loadedPhotos.push(imgObj);
+    // 일반 촬영과 재촬영(retake) 분기 업데이트
+    if (index >= state.photos.length) {
+      state.photos.push(dataURL);
+      const imgObj = new Image();
+      imgObj.src = dataURL;
+      state.loadedPhotos.push(imgObj);
+    } else {
+      state.photos[index] = dataURL;
+      const imgObj = new Image();
+      imgObj.src = dataURL;
+      state.loadedPhotos[index] = imgObj;
+    }
+
+    // 썸네일 슬롯 이미지 갱신
+    const slot = document.querySelector(`.thumb-slot[data-index="${index}"]`);
+    if (slot) {
+      slot.classList.add('active');
+      const oldImg = slot.querySelector('img');
+      if (oldImg) oldImg.remove();
+      const img = createElement('img');
+      img.src = dataURL;
+      slot.appendChild(img);
+    }
 
     renderShootPreviewCanvas(state.photos.length - 1);
 
@@ -2922,15 +2986,17 @@
     // 상태 초기화
     state.currentScreen = 'start';
     state.frame = {
-      layout: 'strip',
-      color: '#08081a',
-      bg: 'none'
+      layout: 'strip4',
+      color: '#000000',
+      bg: 'none',
+      deco: 'none'
     };
     state.bgImages = {};
     state.sampleImage = null;
     state.photos = [];
     state.loadedPhotos = [];
     state.currentShot = 0;
+    state.retakeIndex = -1;
     state.adjustments = { brightness: 50, saturation: 50, contrast: 50 };
     state.filter = 'none';
     state.stickers = [];
@@ -2944,6 +3010,37 @@
     state.stickerIdCounter = 0;
     state.uploadedImageUrl = null;
     state.hostedPageUrl = null;
+    state.selectedCameraId = null;
+
+    // UI 동기화 초기화
+    const bgContainer = $('#bg-options-list');
+    if (bgContainer) bgContainer.innerHTML = '';
+    
+    // 스타일 액티브 옵션 제거
+    document.querySelectorAll('.style-option-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.frame-style-option').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.layout-card').forEach(c => {
+      c.classList.remove('active');
+      c.setAttribute('aria-pressed', 'false');
+    });
+    
+    const defaultLayout = document.getElementById('layout-strip4');
+    if (defaultLayout) {
+      defaultLayout.classList.add('active');
+      defaultLayout.setAttribute('aria-pressed', 'true');
+    }
+
+    // 촬영 썸네일들 비우기
+    const thumbsContainer = $('#photo-thumbs');
+    if (thumbsContainer) thumbsContainer.innerHTML = '';
+    
+    // 촬영 다음 버튼 숨기기
+    const nextBtn = document.getElementById('btn-shoot-next');
+    if (nextBtn) nextBtn.classList.add('hidden');
+    
+    // 카운트다운 숫자 초기화
+    const cdEl = $('#countdown-number');
+    if (cdEl) cdEl.textContent = '';
   }
 
   /**
@@ -2993,7 +3090,10 @@
     // 프레임 뒤로가기 → 시작 화면
     const btnFrameBack = $('#btn-frame-back');
     if (btnFrameBack) {
-      btnFrameBack.addEventListener('click', () => showScreen('start'));
+      btnFrameBack.addEventListener('click', () => {
+        resetAll();
+        showScreen('start');
+      });
     }
 
     // 촬영 뒤로가기 → 프레임 선택 화면 (카메라 정지)
@@ -3010,6 +3110,27 @@
     const btnRetake = $('#btn-retake');
     if (btnRetake) {
       btnRetake.addEventListener('click', handleRetake);
+    }
+
+    // 썸네일 클릭 → 해당 슬롯만 재촬영
+    const thumbsContainer = $('#photo-thumbs');
+    if (thumbsContainer) {
+      thumbsContainer.addEventListener('click', (e) => {
+        const slot = e.target.closest('.thumb-slot');
+        if (!slot) return;
+        const idx = parseInt(slot.dataset.index, 10);
+        if (isNaN(idx)) return;
+        // 해당 슬롯에 사진이 있을 때만 재촬영 가능
+        if (idx >= state.photos.length) return;
+        // 이미 카운트다운 중이면 무시
+        if (state.countdownTimer) return;
+        state.retakeIndex = idx;
+        cancelCountdown();
+        // 0.3초 후 해당 슬롯만 재촬영 시작
+        setTimeout(() => {
+          if (state.currentScreen === 'shoot') startShootingSequence();
+        }, 300);
+      });
     }
 
     // 카메라 선택 이벤트 등록
