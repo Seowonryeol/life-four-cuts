@@ -246,6 +246,10 @@
   function loadImage(dataURL) {
     return new Promise((resolve, reject) => {
       const img = new Image();
+      // 외부 도메인(Cloudinary 등) 이미지의 캔버스 합성 시 CORS 오염(Tainted Canvas) 에러 방지
+      if (dataURL && (dataURL.startsWith('http://') || dataURL.startsWith('https://'))) {
+        img.crossOrigin = 'anonymous';
+      }
       img.onload = () => resolve(img);
       img.onerror = reject;
       img.src = dataURL;
