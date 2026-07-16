@@ -560,10 +560,9 @@
             e.touches[0].clientY - e.touches[1].clientY
           );
           const ratio = dist / initialPinchDist;
-          
-          // 줌 범위를 1.0 ~ 3.0 으로 세팅
+                    // 줌 범위를 0.5 ~ 3.0 으로 세팅
           let newZoom = initialZoomVal * ratio;
-          newZoom = Math.max(1, Math.min(3, newZoom));
+          newZoom = Math.max(0.5, Math.min(3, newZoom));
           newZoom = Math.round(newZoom * 10) / 10; // 소수점 한자리 반올림
 
           zoomSlider.value = newZoom;
@@ -729,6 +728,13 @@
         const sx = (vw - sw) / 2;
         const sy = (vh - sh) / 2;
         ctx.drawImage(video, sx, sy, sw, sh, -vw / 2, -vh / 2, vw, vh);
+      } else if (zoom < 1) {
+        // 0.5 ~ 0.9 배율 축소 줌아웃 처리: 검은색 여백 채우고 영상은 축소 그리기
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(-vw / 2, -vh / 2, vw, vh);
+        const dw = vw * zoom;
+        const dh = vh * zoom;
+        ctx.drawImage(video, -dw / 2, -dh / 2, dw, dh);
       } else {
         ctx.drawImage(video, -vw / 2, -vh / 2, vw, vh);
       }
@@ -744,6 +750,15 @@
         const sx = (vw - sw) / 2;
         const sy = (vh - sh) / 2;
         ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      } else if (zoom < 1) {
+        // 0.5 ~ 0.9 배율 축소 줌아웃 처리: 검은색 여백 채우고 영상은 축소 그리기
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const dw = canvas.width * zoom;
+        const dh = canvas.height * zoom;
+        const dx = (canvas.width - dw) / 2;
+        const dy = (canvas.height - dh) / 2;
+        ctx.drawImage(video, dx, dy, dw, dh);
       } else {
         ctx.drawImage(video, 0, 0, vw, vh);
       }
@@ -2151,9 +2166,14 @@
     if (usable < 20) return;          // 여백 부족 시 생략
 
     const maxFontSize = Math.floor(usable / 2.3);  // 텍스트 크기 비율 확대 (2.8 -> 2.3)
-    const fontSize    = Math.min(maxFontSize, Math.round(w * 0.07)); // 최대 캔버스 너비의 7%
+    let fontSize      = Math.min(maxFontSize, Math.round(w * 0.07)); // 최대 캔버스 너비의 7%
 
-    if (fontSize < 14) return; // 너무 작으면 생략
+    // grid22 레이아웃의 경우 워터마크 크기를 80%로 축소
+    if (state.frame.layout === 'grid22' || state.frame.layout === 'grid22v') {
+      fontSize = Math.round(fontSize * 0.80);
+    }
+
+    if (fontSize < 12) return; // 최소 글자 한도 완화 (기존 14 -> 12)
 
     const brandSize = Math.round(fontSize * 1.1);
     const dateSize  = fontSize;
