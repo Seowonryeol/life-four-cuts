@@ -48,6 +48,16 @@
         gap:     30,
         totalShots: 4
       },
+      // 세로 2×2 (스마트폰 세로 사진 4장)
+      grid22v: {
+        canvasWidth:  1200,
+        canvasHeight: 1600,
+        photoWidth:   555,
+        photoHeight:  710,
+        padding: 45,
+        gap:     30,
+        totalShots: 4
+      },
       // 하위 호환
       strip: {
         canvasWidth:  1200,
@@ -465,6 +475,11 @@
       video.setAttribute('autoplay', '');
       video.muted = true;
       try { await video.play(); } catch(e) { console.warn('autoplay blocked:', e.message); }
+      // 전면 카메라만 좌우 반전 미리보기
+      const _track = stream.getVideoTracks()[0];
+      const _facing = _track ? (_track.getSettings().facingMode || '') : '';
+      const _isRear = _facing === 'environment' || (!_facing && state.facingMode === 'environment');
+      video.style.transform = _isRear ? 'scaleX(1)' : 'scaleX(-1)';
     }
     await populateCameraDevices();
   }
@@ -492,14 +507,34 @@
         return;
       }
 
-      videoDevices.forEach((device, index) => {
+      // 전면/후면으로 그룹핑 (중복 제거)
+      const frontDevice = videoDevices.find(d =>
+        d.label.toLowerCase().includes('front') || d.label.toLowerCase().includes('전면') || d.label.toLowerCase().includes('user')
+      );
+      const rearDevice = videoDevices.find(d =>
+        d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('후면') || d.label.toLowerCase().includes('environment') || d.label.toLowerCase().includes('rear')
+      );
+
+      const grouped = [];
+      if (frontDevice) grouped.push({ device: frontDevice, label: '전면 카메라', facing: 'user' });
+      if (rearDevice  && rearDevice.deviceId !== (frontDevice ? frontDevice.deviceId : '')) {
+        grouped.push({ device: rearDevice, label: '후면 카메라', facing: 'environment' });
+      }
+      // 분류 안 된 경우 모두 포함
+      if (grouped.length === 0) {
+        videoDevices.forEach((d, i) => grouped.push({ device: d, label: d.label || `카메라 ${i+1}`, facing: null }));
+      } else if (!frontDevice && !rearDevice) {
+        videoDevices.forEach((d, i) => grouped.push({ device: d, label: d.label || `카메라 ${i+1}`, facing: null }));
+      }
+
+      grouped.forEach(({ device, label, facing }) => {
         const opt = document.createElement('option');
         opt.value = device.deviceId;
-        opt.innerText = device.label || `카메라 ${index + 1}`;
+        opt.dataset.facing = facing || '';
+        opt.innerText = label;
         if (state.selectedCameraId === device.deviceId) {
           opt.selected = true;
         } else if (!state.selectedCameraId) {
-          // 현재 활성화된 스트림의 장치 ID와 비교
           const activeTrack = state.cameraStream ? state.cameraStream.getVideoTracks()[0] : null;
           if (activeTrack && activeTrack.getSettings().deviceId === device.deviceId) {
             opt.selected = true;
@@ -542,9 +577,14 @@
 
     const ctx = canvas.getContext('2d');
 
-    // 좌우 반전 (미러링) — 미리보기와 동일하게 보이도록
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
+    // 전면 카메라만 좌우 반전 (후면 카메라는 반전 없음)
+    const activeTrack = state.cameraStream ? state.cameraStream.getVideoTracks()[0] : null;
+    const trackSettings = activeTrack ? activeTrack.getSettings() : {};
+    const isRearCamera = trackSettings.facingMode === 'environment';
+    if (!isRearCamera) {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
@@ -1387,7 +1427,7 @@
     const ctx = canvas.getContext('2d');
 
     // 배경 설정 (skipOverlay=true)
-    drawBackground(ctx, canvas.width, canvas.height, frameConfig.bg, frameConfig.color, true);
+    drawBackground(ctx, canvas.width, canvas.height, frameConfig.bg, frameConfig.color, false);
 
     // 사진 위치 계산
     const positions = getPhotoPositions(frameConfig.layout, layout);
@@ -1467,7 +1507,7 @@
     const pad = layout.padding;
     const gap = layout.gap;
 
-    if (layoutName === 'grid22') {
+    if (layoutName === 'grid22' || layoutName === 'grid22v') {
       // 2×2 격자 레이아웃
       const cols = 2;
       const rows = 2;

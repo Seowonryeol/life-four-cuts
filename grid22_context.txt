@@ -1,0 +1,17 @@
+><small>Vertical 3</small></span>
+              </button>
+              <button class="layout-card" data-layout="grid22" aria-pressed="false" id="layout-grid22">
+                <div class="layout-icon layout-icon-grid22">
+                  <div></div><div></div><div></div><div></div>
+                </div>
+                <span>2×2 격자<br><small>Grid 2×2</small></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Template download -->
+          <div class="option-group">
+            <div style="position:relative;">
+            <button id="btn-download-template" class="btn-secondary btn-sm">
+              📐 규격 다운로드<br><small>Download Template</small>
+           

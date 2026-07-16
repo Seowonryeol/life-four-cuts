@@ -94,6 +94,12 @@
                 </div>
                 <span>2×2 격자<br><small>Grid 2×2</small></span>
               </button>
+              <button class="layout-card" data-layout="grid22v" aria-pressed="false" id="layout-grid22v">
+                <div class="layout-icon layout-icon-grid22">
+                  <div style="height:120%;"></div><div style="height:120%;"></div><div style="height:120%;"></div><div style="height:120%;"></div>
+                </div>
+                <span>세로 2×2<br><small>Portrait 2×2</small></span>
+              </button>
             </div>
           </div>
 
@@ -362,6 +368,7 @@
           </p>
 
           <div class="action-buttons">
+              <button class="btn-secondary" onclick="document.getElementById('feedback-modal').style.display='flex';" style="margin-top:8px;font-size:13px;opacity:0.8;">🐞 버그/피드백 신고</button>
             <button id="btn-download" class="btn-primary">📥 រក្សាទុក<br><span style="font-size:0.9em;">Save</span></button>
             <button id="btn-qr"       class="btn-secondary">📱 QR Code<br><span style="font-size:0.9em;">QR Code</span></button>
             <button id="btn-email"    class="btn-secondary">✉️ អ៊ីមែល<br><span style="font-size:0.9em;">Email</span></button>
@@ -407,5 +414,38 @@
     });
   </script>
 
+
+  <!-- ===== 버그/피드백 신고 모달 ===== -->
+  <div id="feedback-modal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:#161640; border:1px solid rgba(255,255,255,0.12); border-radius:20px; padding:32px; width:min(480px,90vw); max-height:90vh; overflow-y:auto; position:relative;">
+      <button onclick="document.getElementById('feedback-modal').style.display='none';" style="position:absolute;top:14px;right:16px;background:none;border:none;color:#8888aa;font-size:22px;cursor:pointer;">✕</button>
+      <h3 style="font-size:18px;font-weight:700;color:#f0f0ff;margin-bottom:20px;">🐞 버그 / 피드백 신고</h3>
+      <form id="feedback-form" action="https://formsubmit.co/dnjsfuf123456@gmail.com" method="POST" target="_blank">
+        <input type="hidden" name="_subject" value="[Life Four Cuts] 버그/피드백 신고">
+        <input type="hidden" name="_captcha" value="false">
+        <input type="hidden" name="_template" value="box">
+        <div style="margin-bottom:14px;">
+          <label style="font-size:13px;color:#8888aa;display:block;margin-bottom:6px;">유형 선택</label>
+          <select name="type" required style="width:100%;padding:10px 12px;background:#0f0f2e;border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#f0f0ff;font-size:14px;outline:none;">
+            <option value="bug">🐞 버그 신고</option>
+            <option value="feature">💡 기능 건의</option>
+            <option value="other">💬 기타</option>
+          </select>
+        </div>
+        <div style="margin-bottom:20px;">
+          <label style="font-size:13px;color:#8888aa;display:block;margin-bottom:6px;">내용</label>
+          <textarea name="message" required placeholder="버그 상황이나 건의 내용을 자세히 적어주세요..." rows="5" style="width:100%;padding:10px 12px;background:#0f0f2e;border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#f0f0ff;font-size:14px;outline:none;resize:vertical;font-family:inherit;"></textarea>
+        </div>
+        <button type="submit" style="width:100%;padding:14px;background:linear-gradient(135deg,#00d4ff,#b44dff);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">📩 제출하기</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    document.getElementById('feedback-form').addEventListener('submit', function() {
+      setTimeout(function() {
+        document.getElementById('feedback-modal').style.display = 'none';
+      }, 500);
+    });
+  </script>
 </body>
 </html>
