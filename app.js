@@ -51,7 +51,7 @@
       // 세로 2×2 (스마트폰 세로 사진 4장 - 3:4 portrait)
       grid22v: {
         canvasWidth:  1200,
-        canvasHeight: 1550,
+        canvasHeight: 1600, // 4번 피드백 반영: 전체 길이 50px 확장
         photoWidth:   525,
         photoHeight:  700,
         padding: 60,
@@ -1498,7 +1498,12 @@
       ctx.restore();
     }
 
-    // 데코 이미지 그리기 (사진 위, 스티커 아래)
+    // 데코 및 커스텀 템플릿 이미지 그리기 (사진 위, 스티커 아래)
+    const composeBgKey = frameConfig.bg;
+    if (composeBgKey && composeBgKey.startsWith('custom_') && state.bgImages && state.bgImages[composeBgKey]) {
+      ctx.drawImage(state.bgImages[composeBgKey], 0, 0, canvas.width, canvas.height);
+    }
+
     if (frameConfig.deco && frameConfig.deco !== 'none' && state.decoImages && state.decoImages[frameConfig.deco]) {
       ctx.drawImage(state.decoImages[frameConfig.deco], 0, 0, canvas.width, canvas.height);
     }
@@ -1652,14 +1657,15 @@
    * 배경 스타일 정의 목록
    */
   const BG_STYLES = [
-    { key: 'none',           label: 'ដើម\nSolid',         thumb: null },
-    { key: 'gradient_pink',  label: 'ផ្កា\nPink Gradient', thumb: null },
-    { key: 'gradient_blue',  label: 'ពណ៌ខៀវ\nBlue Gradient', thumb: null },
-    { key: 'gradient_gold',  label: 'មាស\nGold Glam',     thumb: null },
-    { key: 'film_noir',      label: 'ហ្វីល\nFilm Noir',   thumb: null },
-    { key: 'pastel_bloom',   label: 'ផ្ការ\nPastel Bloom', thumb: null },
-    { key: 'minimal_dots',   label: 'ចំណុច\nMinimal Dots', thumb: null },
-    { key: 'vert4_bg2',      label: 'Template 2',          thumb: null }
+    { key: 'none',           label: 'ដើម\nSolid',         deco: 'none',  thumb: null },
+    { key: 'gradient_pink',  label: 'ផ្កា\nPink Gradient', deco: 'none',  thumb: null },
+    { key: 'gradient_blue',  label: 'ពណ៌ខៀវ\nBlue Gradient', deco: 'none',  thumb: null },
+    { key: 'gradient_gold',  label: 'មាស\nGold Glam',     deco: 'none',  thumb: null },
+    { key: 'film_noir',      label: 'ហ្វីល\nFilm Noir',   deco: 'none',  thumb: null },
+    { key: 'pastel_bloom',   label: 'ផ្ការ\nPastel Bloom', deco: 'none',  thumb: null },
+    { key: 'minimal_dots',   label: 'ចំណុច\nMinimal Dots', deco: 'none',  thumb: null },
+    { key: 'vert4_bg1',      label: 'Template 1',          deco: 'vert4_deco1', thumb: null },
+    { key: 'vert4_bg2',      label: 'Template 2',          deco: 'vert4_deco2', thumb: null }
   ];
 
   /**
@@ -1824,6 +1830,7 @@
         $$('.style-option-item').forEach(el => el.classList.remove('active'));
         item.classList.add('active');
         state.frame.bg = style.key;
+        state.frame.deco = style.deco || 'none';
         renderEditCanvas();
       });
       container.appendChild(item);
@@ -1875,11 +1882,10 @@
     const bottomMargin = h - photoBottom;           // 여백 px
 
     // 텍스트 2줄이 들어갈 수 있는 최대 폰트 크기 계산
-    // brand + date + gap(8px) + top/bottom padding(각 6px)
-    const usable = bottomMargin - 20; // 상하 10px 마진
+    const usable = bottomMargin - 12; // 상하 6px 마진만 확보
     if (usable < 20) return;          // 여백 부족 시 생략
 
-    const maxFontSize = Math.floor(usable / 2.8);  // 두 줄 + 간격 비율
+    const maxFontSize = Math.floor(usable / 2.3);  // 텍스트 크기 비율 확대 (2.8 -> 2.3)
     const fontSize    = Math.min(maxFontSize, Math.round(w * 0.07)); // 최대 캔버스 너비의 7%
 
     if (fontSize < 14) return; // 너무 작으면 생략
@@ -1961,12 +1967,12 @@
       drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
       ctx.filter = 'none'; // 필터 초기화
 
-      // 모든 사진에 3px 검은색 테두리 및 3px 우하단 그림자
+      // 모든 사진 프레임별로 1px 검은색 테두리 및 3px 우측 하단 그림자 적용
       ctx.save();
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3;
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 4;
+      ctx.lineWidth = 1;
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = 3;
       ctx.shadowOffsetX = 3;
       ctx.shadowOffsetY = 3;
       ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
@@ -2077,7 +2083,7 @@
   async function preloadBackgrounds() {
     
     const decos = [
-      { key: 'vert4_deco1', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784008120/vert4_template_deco_01_wq4jtw.png' },
+      { key: 'vert4_deco1', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784012757/vert4_template_deco_01_scqvmr.png' },
       { key: 'vert4_deco2', path: 'https://res.cloudinary.com/dv1t8m7k/image/upload/v1784008121/vert4_template_deco_02_gxvmmn.png' }
     ];
 
@@ -2429,6 +2435,27 @@
   async function initShootScreen() {
     // 상태 초기화
     state.adjustments = { brightness: 50, saturation: 50, contrast: 50 };
+
+    // 레이아웃별 카메라 영역 비율 설정 (3번 피드백 반영)
+    const aspectBox = document.querySelector('.camera-aspect-box');
+    if (aspectBox) {
+      if (state.frame.layout === 'grid22v') {
+        aspectBox.style.aspectRatio = '3 / 4';
+        aspectBox.style.width = 'auto';
+        aspectBox.style.height = '100%';
+        aspectBox.style.maxHeight = '72vh'; // 모바일 화면에서 잘리지 않도록 안전 높이 설정
+      } else if (state.frame.layout === 'grid22') {
+        aspectBox.style.aspectRatio = '1 / 1';
+        aspectBox.style.width = 'auto';
+        aspectBox.style.height = '100%';
+        aspectBox.style.maxHeight = '72vh';
+      } else {
+        aspectBox.style.aspectRatio = '540 / 380';
+        aspectBox.style.width = '100%';
+        aspectBox.style.height = 'auto';
+        aspectBox.style.maxHeight = '100%';
+      }
+    }
     state.currentShot = 0;
     state.retakeIndex = -1;
     state.photos = [];
@@ -2558,10 +2585,17 @@
         const startBtn = $('#btn-start-shooting');
         if (startBtn) startBtn.classList.add('hidden');
 
-        // 잠시 후 편집화면으로
+        // 5번 피드백 반영: 재촬영된 뒤 바로 다음 페이지로 넘어가지 않고 다음 버튼을 보여줍니다.
         setTimeout(() => {
-          if (state.currentScreen === 'shoot') showScreen('edit');
-        }, 1800);
+          if (state.currentScreen === 'shoot') {
+            showRetakeTooltip();
+            const nextBtn = document.getElementById('btn-shoot-next');
+            if (nextBtn) {
+              nextBtn.classList.remove('hidden');
+              nextBtn.onclick = () => showScreen('edit');
+            }
+          }
+        }, 1200);
       });
       return;
     }
