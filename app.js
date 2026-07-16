@@ -511,6 +511,17 @@
         const _track = stream.getVideoTracks()[0];
         const capabilities = (_track && typeof _track.getCapabilities === 'function') ? _track.getCapabilities() : {};
 
+        // 하드웨어 광각(0.5배 등)을 지원하면 슬라이더 최소값을 그에 맞춤. 미지원 시 최소값 1.0배 고정.
+        if (capabilities.zoom) {
+          zoomSlider.min = capabilities.zoom.min !== undefined ? capabilities.zoom.min : 1.0;
+          zoomSlider.max = capabilities.zoom.max !== undefined ? capabilities.zoom.max : 3.0;
+          zoomSlider.step = capabilities.zoom.step !== undefined ? capabilities.zoom.step : 0.1;
+        } else {
+          zoomSlider.min = 1.0;
+          zoomSlider.max = 3.0;
+          zoomSlider.step = 0.1;
+        }
+
         // 리셋 대비 기본 스케일 제거
         video.style.transform = video.style.transform.split(' scale(')[0];
 
@@ -535,7 +546,10 @@
           const currentTransform = video.style.transform;
           const isFlipped = currentTransform.includes('scaleX(-1)');
           const baseTransform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
-          video.style.transform = `${baseTransform} scale(${val})`;
+          
+          // CSS 줌인인 경우 1배 미만 축소 방지 (여백 생김 방지)
+          const scaleVal = val < 1.0 ? 1.0 : val;
+          video.style.transform = `${baseTransform} scale(${scaleVal})`;
         }
       }
 
@@ -560,9 +574,10 @@
             e.touches[0].clientY - e.touches[1].clientY
           );
           const ratio = dist / initialPinchDist;
-                    // 줌 범위를 0.5 ~ 3.0 으로 세팅
+          // 줌 범위를 하드웨어 지원에 맞춤 (동적 최솟값 제어)
+          const minZoomLimit = parseFloat(zoomSlider.min) || 1.0;
           let newZoom = initialZoomVal * ratio;
-          newZoom = Math.max(0.5, Math.min(3, newZoom));
+          newZoom = Math.max(minZoomLimit, Math.min(3, newZoom));
           newZoom = Math.round(newZoom * 10) / 10; // 소수점 한자리 반올림
 
           zoomSlider.value = newZoom;
