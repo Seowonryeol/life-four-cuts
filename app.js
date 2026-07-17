@@ -701,19 +701,9 @@
     const vw = video.videoWidth;
     const vh = video.videoHeight;
 
-    // 기기 회전 각도 감지 (일부 안드로이드에서 스트림이 회전 미보정)
-    let orientAngle = 0;
-    if (window.screen && window.screen.orientation) {
-      orientAngle = window.screen.orientation.angle || 0;
-    } else if (typeof window.orientation !== 'undefined') {
-      orientAngle = window.orientation;
-    }
-    // 90/270도 회전된 경우 캔버스 가로세로를 뒤집어 저장
-    const rotated = (orientAngle === 90 || orientAngle === -90 || orientAngle === 270);
-
     const canvas = document.createElement('canvas');
-    canvas.width  = rotated ? vh : vw;
-    canvas.height = rotated ? vw : vh;
+    canvas.width  = vw;
+    canvas.height = vh;
 
     const ctx = canvas.getContext('2d');
 
@@ -731,52 +721,19 @@
     const zoom = state.zoomValue || 1;
 
     ctx.save();
-    if (rotated) {
-      // 캔버스 중심으로 이동 후 회전
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate((orientAngle * Math.PI) / 180);
-      if (mirrorCapture) ctx.scale(-1, 1);
-      
-      if (zoom > 1) {
-        const sw = vw / zoom;
-        const sh = vh / zoom;
-        const sx = (vw - sw) / 2;
-        const sy = (vh - sh) / 2;
-        ctx.drawImage(video, sx, sy, sw, sh, -vw / 2, -vh / 2, vw, vh);
-      } else if (zoom < 1) {
-        // 0.5 ~ 0.9 배율 축소 줌아웃 처리: 검은색 여백 채우고 영상은 축소 그리기
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(-vw / 2, -vh / 2, vw, vh);
-        const dw = vw * zoom;
-        const dh = vh * zoom;
-        ctx.drawImage(video, -dw / 2, -dh / 2, dw, dh);
-      } else {
-        ctx.drawImage(video, -vw / 2, -vh / 2, vw, vh);
-      }
+    if (mirrorCapture) {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    
+    if (zoom > 1) {
+      const sw = vw / zoom;
+      const sh = vh / zoom;
+      const sx = (vw - sw) / 2;
+      const sy = (vh - sh) / 2;
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
     } else {
-      if (mirrorCapture) {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-      }
-      
-      if (zoom > 1) {
-        const sw = vw / zoom;
-        const sh = vh / zoom;
-        const sx = (vw - sw) / 2;
-        const sy = (vh - sh) / 2;
-        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-      } else if (zoom < 1) {
-        // 0.5 ~ 0.9 배율 축소 줌아웃 처리: 검은색 여백 채우고 영상은 축소 그리기
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const dw = canvas.width * zoom;
-        const dh = canvas.height * zoom;
-        const dx = (canvas.width - dw) / 2;
-        const dy = (canvas.height - dh) / 2;
-        ctx.drawImage(video, dx, dy, dw, dh);
-      } else {
-        ctx.drawImage(video, 0, 0, vw, vh);
-      }
+      ctx.drawImage(video, 0, 0, vw, vh);
     }
     ctx.restore();
 
@@ -1719,14 +1676,10 @@
       drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
       ctx.filter = 'none';
 
-      // 모든 사진 프레임별로 1px 검은색 테두리 및 3px 우측 하단 그림자 적용
+      // 모든 사진 프레임별로 3px 검은색 테두리 적용 (그림자 효과 제거)
       ctx.save();
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1;
-      ctx.shadowColor = 'rgba(0,0,0,0.45)';
-      ctx.shadowBlur = 3;
-      ctx.shadowOffsetX = 3;
-      ctx.shadowOffsetY = 3;
+      ctx.lineWidth = 3;
       ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
       ctx.restore();
 
@@ -2267,14 +2220,10 @@
       drawImageCover(ctx, img, pos.x, pos.y, pos.width, pos.height);
       ctx.filter = 'none'; // 필터 초기화
 
-      // 모든 사진 프레임별로 1px 검은색 테두리 및 3px 우측 하단 그림자 적용
+      // 모든 사진 프레임별로 3px 검은색 테두리 적용 (그림자 효과 제거)
       ctx.save();
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1;
-      ctx.shadowColor = 'rgba(0,0,0,0.45)';
-      ctx.shadowBlur = 3;
-      ctx.shadowOffsetX = 3;
-      ctx.shadowOffsetY = 3;
+      ctx.lineWidth = 3;
       ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
       ctx.restore();
 
@@ -2351,18 +2300,11 @@
       ctx.font = 'bold 36px "Pretendard", sans-serif';
       ctx.fillText(`Sample Photo ${index + 1}`, pos.x + pos.width / 2, pos.y + pos.height / 2 + 50);
 
-      // 'Solid' 또는 'Template 2' 인 경우 5px 테두리 추가
-      if (state.frame.bg === 'none' || state.frame.bg === 'vert4_bg2') {
-        ctx.save();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 5;
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 3;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
-        ctx.restore();
-      }
+      ctx.save();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+      ctx.restore();
 
       ctx.restore();
     });
@@ -2737,41 +2679,7 @@
     state.adjustments = { brightness: 50, saturation: 50, contrast: 50 };
 
     // 레이아웃별 카메라 영역 비율 설정 (모바일 높이 붕괴 해결 & 데스크톱 꽉 차게 확장)
-    const aspectBox = document.querySelector('.camera-aspect-box');
-    if (aspectBox) {
-      const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isMobile) {
-        // 모바일: 가로 기준 100% 폭, 높이 auto로 붕괴 방지, 최대 높이 60vh 제한
-        aspectBox.style.width = '100%';
-        aspectBox.style.height = 'auto';
-        aspectBox.style.maxHeight = '60vh';
-        if (state.frame.layout === 'grid22v') {
-          aspectBox.style.aspectRatio = '3 / 4';
-        } else if (state.frame.layout === 'grid22') {
-          aspectBox.style.aspectRatio = '1 / 1';
-        } else {
-          aspectBox.style.aspectRatio = '540 / 380';
-        }
-      } else {
-        // 데스크톱: 높이 기준 100% 채움, 가로 auto, 2x2 격자는 최대 높이 95vh까지 크게 채움
-        if (state.frame.layout === 'grid22v') {
-          aspectBox.style.aspectRatio = '3 / 4';
-          aspectBox.style.width = 'auto';
-          aspectBox.style.height = '100%';
-          aspectBox.style.maxHeight = '95vh';
-        } else if (state.frame.layout === 'grid22') {
-          aspectBox.style.aspectRatio = '1 / 1';
-          aspectBox.style.width = 'auto';
-          aspectBox.style.height = '100%';
-          aspectBox.style.maxHeight = '95vh';
-        } else {
-          aspectBox.style.aspectRatio = '540 / 380';
-          aspectBox.style.width = '100%';
-          aspectBox.style.height = 'auto';
-          aspectBox.style.maxHeight = '100%';
-        }
-      }
-    }
+    updateCameraAspectStyle();
     state.currentShot = 0;
     state.retakeIndex = -1;
     state.photos = [];
@@ -2864,6 +2772,62 @@
     // 카메라 시작
     await initCamera();
   }
+
+  /**
+   * 모바일 가로/세로 방향에 따른 카메라 뷰박스 스타일 업데이트
+   */
+  function updateCameraAspectStyle() {
+    const aspectBox = document.querySelector('.camera-aspect-box');
+    if (!aspectBox) return;
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isLandscape = window.innerWidth > window.innerHeight;
+    
+    if (isMobile && !isLandscape) {
+      // 모바일 세로모드: 가로 기준 100% 폭, 높이 auto로 붕괴 방지, 최대 높이 60vh 제한
+      aspectBox.style.width = '100%';
+      aspectBox.style.height = 'auto';
+      aspectBox.style.maxHeight = '60vh';
+      if (state.frame.layout === 'grid22v') {
+        aspectBox.style.aspectRatio = '3 / 4';
+      } else if (state.frame.layout === 'grid22') {
+        aspectBox.style.aspectRatio = '1 / 1';
+      } else {
+        aspectBox.style.aspectRatio = '540 / 380';
+      }
+    } else {
+      // 데스크톱 또는 모바일 가로모드: 높이 기준 100% 채움, 가로 auto, 큰 뷰박스 채움
+      if (state.frame.layout === 'grid22v') {
+        aspectBox.style.aspectRatio = '3 / 4';
+        aspectBox.style.width = 'auto';
+        aspectBox.style.height = '100%';
+        aspectBox.style.maxHeight = isMobile ? '80vh' : '95vh';
+      } else if (state.frame.layout === 'grid22') {
+        aspectBox.style.aspectRatio = '1 / 1';
+        aspectBox.style.width = 'auto';
+        aspectBox.style.height = '100%';
+        aspectBox.style.maxHeight = isMobile ? '80vh' : '95vh';
+      } else {
+        aspectBox.style.aspectRatio = '540 / 380';
+        aspectBox.style.width = 'auto';
+        aspectBox.style.height = '100%';
+        aspectBox.style.maxHeight = isMobile ? '80vh' : '95vh';
+      }
+    }
+  }
+
+  // 회전 및 창 크기 변경 시 카메라 뷰포트 비율 재설정
+  window.addEventListener('resize', () => {
+    if (state.currentScreen === 'shoot') {
+      updateCameraAspectStyle();
+    }
+  });
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+      if (state.currentScreen === 'shoot') {
+        updateCameraAspectStyle();
+      }
+    }, 200);
+  });
 
   /**
    * 촬영 시퀀스: 카운트다운 → 캡처 → 다음 촬영 또는 완료

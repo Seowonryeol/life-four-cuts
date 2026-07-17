@@ -366,6 +366,8 @@ input { font-family: inherit; outline: none; border: none; }
   top: 0; left: 0;
   width: 100%; height: 100%;
   object-fit: cover; transform: scaleX(-1);
+  will-change: transform;
+  transform-style: preserve-3d;
 }
 
 /* Countdown Overlay */
@@ -1192,4 +1194,180 @@ button:focus-visible, input:focus-visible { outline:2px solid var(--neon-blue); 
 }
 
 @media print { body { display:none; } }
+
+/* ── Mobile Landscape Orientation Optimization ── */
+@media (max-width: 932px) and (orientation: landscape) {
+  html, body, #app {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+  
+  .screen {
+    padding: 10px !important;
+  }
+
+  .screen-header {
+    margin-bottom: 5px !important;
+    padding: 2px !important;
+  }
+  .screen-header h2 {
+    font-size: 16px !important;
+    line-height: 1.2 !important;
+  }
+
+  /* 2. Shoot Screen */
+  .shoot-layout {
+    flex-direction: row !important;
+    height: calc(100% - 40px) !important;
+    overflow: hidden !important;
+  }
+  .camera-container {
+    height: 100% !important;
+    flex: 1.5 1 auto !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px !important;
+  }
+  .camera-aspect-box {
+    max-height: 75vh !important;
+    height: 75vh !important;
+    width: auto !important;
+    max-width: 100% !important;
+  }
+  .shoot-sidebar {
+    width: 180px !important;
+    height: 100% !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    border-left: 1px solid var(--glass-border) !important;
+    border-top: none !important;
+    padding: 8px !important;
+    gap: 8px !important;
+    max-height: none !important;
+  }
+  .shoot-sidebar > * {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+  }
+  .shoot-preview-frame-container {
+    display: none !important;
+  }
+
+  /* 3. Edit Screen (Deco Screen) */
+  .edit-body {
+    flex-direction: row !important;
+    height: calc(100% - 40px) !important;
+    overflow: hidden !important;
+  }
+  .edit-preview-container {
+    flex: 1.5 !important;
+    width: auto !important;
+    height: 100% !important;
+    padding: 5px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #edit-canvas {
+    max-height: 75vh !important;
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+  }
+  .edit-sidebar {
+    width: 200px !important;
+    height: 100% !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    border-left: 1px solid var(--glass-border) !important;
+    border-top: none !important;
+  }
+  .edit-sidebar-header {
+    padding: 8px !important;
+  }
+  .edit-sidebar-tabs {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    padding: 4px !important;
+  }
+  .tab-btn {
+    padding: 6px 4px !important;
+    font-size: 10px !important;
+    flex: 1 1 auto !important;
+  }
+  .edit-sidebar-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+  }
+
+  /* 4. Frame Select Screen */
+  .frame-select-body {
+    flex-direction: row !important;
+    height: calc(100% - 40px) !important;
+    overflow: hidden !important;
+  }
+  .frame-preview-container {
+    flex: 1.5 !important;
+    height: 100% !important;
+    max-height: 75vh !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #frame-preview {
+    max-height: 75vh !important;
+    max-width: 100% !important;
+  }
+  .frame-select-info {
+    width: 220px !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    border-left: 1px solid var(--glass-border) !important;
+    border-top: none !important;
+    padding: 8px !important;
+  }
+
+  /* 5. Result Screen */
+  .result-body {
+    flex-direction: row !important;
+    height: calc(100% - 40px) !important;
+    overflow: hidden !important;
+  }
+  .result-preview {
+    flex: 1.5 !important;
+    height: 100% !important;
+    padding: 5px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #result-image {
+    max-height: 75vh !important;
+    max-width: 100% !important;
+    height: auto !important;
+    width: auto !important;
+    object-fit: contain !important;
+  }
+  .result-actions-panel {
+    width: 200px !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    border-left: 1px solid var(--glass-border) !important;
+    padding: 8px !important;
+  }
+  .result-actions-panel .action-buttons {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .result-actions-panel .btn-primary,
+  .result-actions-panel .btn-secondary {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+}
 
